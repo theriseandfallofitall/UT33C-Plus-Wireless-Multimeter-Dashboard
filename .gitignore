@@ -4,3 +4,16 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
+
+# PlatformIO
+.pio/
+.vscode/
+
+# Logs
+logs/*.log
+logs/*.csv
+logs/*.txt
+
+# Local Memory
+MEMORY.md
+GEMINI.md
