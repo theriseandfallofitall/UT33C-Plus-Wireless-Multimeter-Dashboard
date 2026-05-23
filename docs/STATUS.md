@@ -20,6 +20,8 @@ The project has successfully reverse-engineered the raw data stream from the UNI
 The Pi Pico 2 rig is built and verified with C++. We have a serial heartbeat working on the RP2350. The next logical step is to run long-duration fuzzing cycles to see if any specific timing or character combination can unlock the RX line.
 
 ---
+## ⚠️ Update (May 23, 2026)
+The C++ firmware (`pico/cpp/src/main.cpp`) was found to be a basic "hello world" serial test, not the advanced fuzzer described in some documents. The fuzzing logic needs to be implemented.
 
 ## 📂 Key Files
 *   `ut33c_plus_final_logger.py`: The production PC tool for logging data.

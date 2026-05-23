@@ -7,6 +7,7 @@ import argparse
 import sys
 import time
 import threading
+import os
 
 try:
     import serial
@@ -179,5 +180,4 @@ def main():
     print("="*40)
 
 if __name__ == "__main__":
-    import os
     main()

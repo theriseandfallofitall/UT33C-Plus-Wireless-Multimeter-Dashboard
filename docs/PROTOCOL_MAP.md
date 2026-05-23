@@ -22,15 +22,21 @@ This port auto-transmits raw data as soon as the meter is powered.
 | Mode Byte | Range Name | Scaling / Formula |
 | :--- | :--- | :--- |
 | `0D` | 20V DC | 1 count = 0.01V |
-| `17` | 200mV DC | (count - 2000) * 0.1mV |
+| `17` | 200mV DC | 1 count = 0.1mV (OL at 2080 counts) |
 | `0E` | 20k Ohm | 1 count = 0.01kΩ |
 | `1A` | 200k Ohm | 1 count = 0.1kΩ |
-| `1C` | 2M Ohm | 1 count = 0.001MΩ |
-| `19` | Continuity | Raw Counts (<1000 = Beep) |
+| `1C` | 2M Ohm | 1 count = 0.01MΩ |
+| `19` | Continuity/Diode | See Special States below. |
 | `16` | Celsius | 1 count = 0.1°C |
-| `13` | Fahrenheit | 1 count = 1.0°F |
+| `13` | Fahrenheit | `(count * 0.1 * 9/5) + 32` (Meter always sends Celsius) |
 
 ## Special States
-*   **Software OL:** Meter displays "OL" when specific thresholds are met (e.g., ~2080 counts in 200mV mode). UART sends stable high values.
-*   **Hardware Saturation:** When the ADC is fully pegged, UART sends `7F FF` or `FF FF`.
-*   **Startup Signature:** During Pad 2 reset, the meter briefly outputs `01 00 00 81 01 00` before standard frames begin.
+*   **Over-Load (OL):** The UART signals OL with specific high values.
+    *   **200mV Mode:** OL at or above 2080 counts.
+    *   **Resistance/Continuity:** OL at or above 32512 counts (`7F00`).
+*   **Continuity/Diode (Mode `19`):** This mode is contextual.
+    *   If `count >= 0x7F00`: It's **Open Loop (OL)** for resistance.
+    *   If `count < 3000`: It's a **Diode reading** in Volts (`count / 1000.0`).
+    *   Otherwise: It's a **Continuity reading** in Ohms.
+*   **Fahrenheit Mode:** The meter's display changes to °F, but the UART *always* transmits the raw temperature in tenths of a degree Celsius. The receiving software must perform the conversion.
+*   **Hardware Saturation:** When the ADC is fully pegged, the UART often sends counts of `7F FF`.

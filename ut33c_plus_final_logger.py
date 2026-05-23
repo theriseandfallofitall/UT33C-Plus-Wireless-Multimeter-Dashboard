@@ -25,16 +25,29 @@ MODES = {
     0x0E: {"name": "20k Ohm", "unit": "kOhm", "scale": 0.01, "offset": 0},
     0x0F: {"name": "200mA DC", "unit": "mA", "scale": 0.1, "offset": 0},
     0x0B: {"name": "10A DC", "unit": "A", "scale": 0.01, "offset": 0},
-    0x13: {"name": "Fahrenheit", "unit": "F", "scale": 1.0, "offset": 0},
-    0x16: {"name": "Celsius", "unit": "C", "scale": 0.1, "offset": 0},
-    0x17: {"name": "200mV DC", "unit": "mV", "scale": 0.1, "offset": -2000},
-    0x19: {"name": "Cont/Diode", "unit": "counts", "scale": 1.0, "offset": 0},
-    0x1A: {"name": "200k Ohm", "unit": "kOhm", "scale": 0.1, "offset": 0},
+    0x13: {"name": "Fahrenheit", "unit": "°F", "scale": 1.0, "offset": 0, "transform": "celsius_to_fahrenheit"},
+    0x16: {"name": "Celsius", "unit": "°C", "scale": 0.1, "offset": 0},
+    0x17: {"name": "200mV DC", "unit": "mV", "scale": 0.1, "offset": 0}, # Offset removed, handled in logic
+    0x19: {"name": "Continuity", "unit": "Ω", "scale": 1.0, "offset": 0, "transform": "continuity_diode"},
+    0x1A: {"name": "200k Ohm", "unit": "kΩ", "scale": 0.1, "offset": 0},
     0x1B: {"name": "20mA DC", "unit": "mA", "scale": 0.01, "offset": 0},
-    0x1C: {"name": "2M Ohm", "unit": "MOhm", "scale": 0.001, "offset": 0},
-    0x1E: {"name": "2000 Ohm", "unit": "Ohm", "scale": 1.0, "offset": 0},
-    0x1F: {"name": "2000uA DC", "unit": "uA", "scale": 1.0, "offset": 0},
+    0x1C: {"name": "2M Ohm", "unit": "MΩ", "scale": 0.01, "offset": 0},
+    0x1E: {"name": "2000 Ohm", "unit": "Ω", "scale": 1.0, "offset": 0},
+    0x1F: {"name": "2000uA DC", "unit": "µA", "scale": 1.0, "offset": 0},
 }
+
+def celsius_to_fahrenheit(celsius_val):
+    return (celsius_val * 9/5) + 32
+
+def continuity_diode(raw_val):
+    # Heuristic: 0x7F00 is confirmed "Open Loop" from logs
+    if raw_val >= 0x7F00:
+        return "OL", "Ω"
+    # Diode mode shows voltage drop, typically < 3V
+    if raw_val < 3000:
+        return f"{raw_val / 1000.0:.3f}", "V"
+    # Otherwise, it's resistance in Ohms for continuity
+    return f"{raw_val}", "Ω"
 
 def checksum_ok(frame):
     if len(frame) != 10: return False
@@ -43,20 +56,44 @@ def checksum_ok(frame):
 
 def decode_reading(frame):
     mode_byte = frame[3]
-    # Reading is bytes 4,5,6,7. Usually 4-5 are high, 6-7 are low.
-    # From our captures, 4-5 were 00 00 and 6-7 were the value.
     # We'll treat it as a 32-bit big-endian unsigned for safety.
     raw_val = int.from_bytes(frame[4:8], byteorder='big')
     
     if mode_byte in MODES:
         m = MODES[mode_byte]
-        # Handle special OL state for these pads (7FFF or 0820)
-        if raw_val >= 0x7FFF or (mode_byte == 0x17 and raw_val >= 2080):
-            return m['name'], "OL", m['unit'], raw_val
         
-        # Apply offset and scale
-        val = (raw_val + m['offset']) * m['scale']
-        return m['name'], f"{val:.2f}" if m['scale'] < 1 else f"{int(val)}", m['unit'], raw_val
+        # Handle mode-specific OL conditions before any scaling
+        # In 200mV mode, 2080 is the OL threshold
+        if mode_byte == 0x17 and raw_val >= 2080:
+            return m['name'], "OL", m['unit'], raw_val
+        # For most resistance modes, a high value is OL
+        if "Ohm" in m['name'] and raw_val >= 0x7F00:
+             return m['name'], "OL", m['unit'], raw_val
+
+        # Apply scaling and offset
+        val = (raw_val + m.get('offset', 0)) * m.get('scale', 1.0)
+
+        # Apply special transformations
+        if m.get('transform') == 'celsius_to_fahrenheit':
+            # Meter always sends Celsius; convert if in Fahrenheit mode
+            celsius_val = (raw_val * 0.1) # Raw is C*10
+            val = celsius_to_fahrenheit(celsius_val)
+            return m['name'], f"{val:.1f}", m['unit'], raw_val
+        
+        if m.get('transform') == 'continuity_diode':
+            new_val, new_unit = continuity_diode(raw_val)
+            return m['name'], new_val, new_unit, raw_val
+
+        # Format the final value
+        # Determine decimal places based on scale
+        if m['scale'] == 0.1:
+            return m['name'], f"{val:.1f}", m['unit'], raw_val
+        elif m['scale'] == 0.01:
+            return m['name'], f"{val:.2f}", m['unit'], raw_val
+        elif m['scale'] == 0.001:
+            return m['name'], f"{val:.3f}", m['unit'], raw_val
+        else:
+            return m['name'], f"{int(val)}", m['unit'], raw_val
     else:
         return f"Unknown ({hex(mode_byte)})", "???", "raw", raw_val
 

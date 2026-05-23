@@ -29,9 +29,9 @@ monitor_speed = 115200
 
 ## Automation Logic (`src/main.cpp`)
 The current firmware performs:
-1.  **Baud Rate Sweep:** Power cycles the meter and listens at 2400, 4800, 9600, and 115200 to catch bootloader strings.
-2.  **Reset Injection:** Pulses Pad 2 and immediately blasts common UNI-T commands (`AB 01`, `AB 00`) to both ports.
-3.  **Heartbeat:** Blinks the onboard LED and prints uptime to the serial monitor.
+1.  **Heartbeat:** Blinks the onboard LED and prints uptime to the serial monitor.
+
+**NOTE:** The description previously listed advanced fuzzing capabilities. This was inaccurate. The current committed firmware is a simple proof-of-life test. The fuzzing logic described is the **goal**, not the current implementation.
 
 ## Serial Output
 Logs are sent to your PC at **115200 baud** over USB.

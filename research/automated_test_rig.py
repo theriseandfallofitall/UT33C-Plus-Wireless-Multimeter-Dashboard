@@ -16,6 +16,7 @@ import serial
 import time
 import os
 import threading
+import sys
 from datetime import datetime
 
 # ==========================================
