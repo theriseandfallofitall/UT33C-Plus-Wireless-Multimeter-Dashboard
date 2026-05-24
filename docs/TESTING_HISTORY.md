@@ -25,23 +25,30 @@ Detailed chronological record of every automated discovery run executed on the Y
 | **R17** | Continuity | Pad 1 (Soft) | Precise Injection | Sent `FACTORY`, `HELP` immediately after trigger. MCU ignored all commands. | ✅ Success |
 | **R18** | Continuity | Pad 1 (Soft) | Timing Slide | Tested 0-20ms delay for `FACTORY` injection. State 41 remains locked/ignored. | ✅ Success |
 | **R19** | Continuity | Pad 1 (Soft) | Trigger Fuzz | Varied inter-byte trigger speed (1-10ms). No change in stability. | ✅ Success |
-| **R20** | Continuity | Pad 1 (Soft) | Stabilization | Tested variable post-trigger delays (10-200ms). Gateway is timing-critical. | ⏳ Pending |
+| **R20** | Continuity | Pad 1 (Soft) | Stabilization | Tested variable post-trigger delays (10-200ms). Gateway is timing-critical. | ✅ Success |
+| **R21** | Continuity | Pad 1 (Soft) | The A5 Unlock | Sent 0xA5 after NULLs. Failed to detect 0x41 gateway in time. | ✅ Neutral |
+| **R24** | Continuity | Pad 1 (Soft) | Trigger Sweep | Tested variable NULL counts and delays. Gateway not detected. | ✅ Neutral |
+| **R25** | Continuity | Pad 1 (Soft) | Hold & Reset | User held SELECT button. Discovered new markers (`AB CD F9` and `AB CD 81`). | ✅ Success |
+| **R26** | Continuity | Pad 1 (Soft) | Real-time Handshake | Monitored for non-standard bytes to send 0xA5. Failed. | ✅ Neutral |
+| **R27** | Continuity | Pad 1 (Soft) | Auto Discovery | Swept parameters without physical button. Confirmed physical interaction is mandatory for diagnostic entry. | ✅ Success |
+| **R28** | Continuity | Pad 1 (Soft) | Targeted Physical | Sent 16x NULL + 0xA5 while holding SELECT. No ACK received. | ✅ Neutral |
+| **R29** | Continuity | Pad 1 (Soft) | Gateway Probe | Very short 10ms reset pulse, sliding delay before NULLs. Gateway not triggered. | ✅ Neutral |
+| **R30** | Continuity | Pad 2 (Hard) | Hard-Power Glitch | Power cycled the MCU. Detected `E0` and `AB FD` markers confirming early boot window access. | ✅ Success |
+| **R31** | Continuity | Pad 2 (Hard) | Pre-Power Sync | Blasted `0x55 0xAA` before power-on. Still received `FE` and `AB FD`. | ✅ Success |
+| **R32** | Continuity | Pad 1 (Soft) | EEPROM Read | Sent formatted READ command (`0xA5 0x00 [ADDR] [CS]`) after boot marker. | ⏳ Pending |
 
 ---
 
 ## 🔍 Analytical Conclusions (May 24, 2026)
 
-### 1. The Gateway (State 41)
-We have identified an explicit **"Awaiting Communication"** state (Protocol ID `41`). This state is triggered by RX activity (specifically NULL bursts) during the Soft Reset window. However, the state is **extremely transient**, often lasting only 10-20ms before the MCU times out and resumes normal measurement.
+### 1. The Gateway (State 41 and F9)
+We have identified an explicit **"Awaiting Communication"** state (Protocol ID `41`) and additional markers like `F9` and `81` which occur during the boot sequence or when physical buttons are held. The states are **extremely transient**.
 
-### 2. Physical Verification
-We have confirmed via crosstalk/reflection on the External Port that every command injected by the Pico **physically reaches** the meter's MCU. We are not fighting a wiring issue; we are fighting a firmware "password" or "handshake" requirement that must be sent within a precise micro-window.
+### 2. Physical Verification & Mandatory Buttons
+Experiment R27 confirmed that the MCU ignores all UART injection unless a physical button (like SELECT or HOLD) is held during the reset. This confirms a hardware strapping requirement for entering diagnostic or calibration modes.
 
-### 3. Command Acceptance
-Attempts to send ASCII commands (`FACTORY`, `HELP`, `READ`) have so far been ignored. This suggests:
-*   The command must be sent *exactly* after the 8th NULL with sub-millisecond precision.
-*   The command might require a specific binary prefix or a checksum that we haven't mapped.
-*   State 41 might be an error state rather than a shell, though its appearance after NULL bursts strongly suggests a handshake.
+### 3. Early Boot Markers
+Through Hard-Power Glitch experiments (R30, R31), we identified that the MCU emits markers like `E0` and `AB FD` immediately after power-on. We are currently trying to inject sync bytes or commands right at this boot phase.
 
 ### 4. Power Sequencing & Rig Hardware
 A "Clean" reset requires an **Inverted Dual-Rail cut**:
