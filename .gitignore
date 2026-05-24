@@ -10,9 +10,9 @@ venv/
 .vscode/
 
 # Logs
-logs/*.log
-logs/*.csv
-logs/*.txt
+logs/**/*.log
+logs/**/*.csv
+logs/**/*.txt
 
 # Local Memory
 MEMORY.md
