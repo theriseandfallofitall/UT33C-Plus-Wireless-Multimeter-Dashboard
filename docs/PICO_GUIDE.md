@@ -1,52 +1,71 @@
-# Pi Pico Test Rig: Operation Guide
+# Pi Pico Firmware Guide
 
-This guide explains how to set up the Raspberry Pi Pico (RP2040/RP2350) rig firmware and run hardware experiments from the host PC without reflashing for every test.
+This guide explains the two Pico firmware profiles used by the project.
 
-## 1. Environment Setup (PlatformIO)
-The test rig uses **PlatformIO** for high-precision timing and multi-core execution.
-1. Install **Visual Studio Code**.
-2. Install the **PlatformIO IDE** extension.
-3. Open the `pico/cpp/` folder in VS Code.
+Only one profile should be active as `pico/cpp/src/main.cpp` when building with PlatformIO.
 
-## 2. Building and Deploying
-We provide a PowerShell script to automate the build and flash process.
-1. Hold the **BOOTSEL** button on your Pico while plugging it into your PC.
-2. Run the deployment script from the project root:
+## Firmware Profiles
+
+| Profile | Source | Purpose |
+| :--- | :--- | :--- |
+| Passive passthrough | `pico/cpp/src/main.cpp` | USB-to-UART bridge for direct logging and on-screen display. Leaves power and reset pins floating. |
+| Command rig | `pico/cpp/firmware/main_rig_command.cpp` | Full hardware-in-the-loop rig controller with power, reset, UART monitor, transmit, and marker-response commands. |
+
+## Environment Setup
+
+1. Install Visual Studio Code.
+2. Install the PlatformIO IDE extension.
+3. Open the `pico/cpp/` folder in VS Code, or build from the repository root with the deployment script.
+
+## Building and Deploying
+
+1. Put the Pico into BOOTSEL mode.
+2. Run:
+
    ```powershell
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy_pico.ps1
    ```
-3. The script will build the UF2 and copy it to the Pico.
 
-## 3. Running Tests Without Reflashing
-Once the firmware is deployed, the Pico waits for line-based USB serial commands. Use the host runner for normal experiments:
-1. Ensure the Pico is connected to your PC.
-2. Check firmware health:
+3. The script builds the UF2 and copies it to the mounted Pico drive.
+
+## Using Passive Passthrough Firmware
+
+The passthrough firmware listens to the meter at 2400 baud on `Serial1` and forwards bytes to USB serial at 115200 baud.
+
+Use it with:
+
+```bash
+python -m display.big_screen_direct
+python -m tools.final_logger
+```
+
+This profile is best for normal display and logging because it does not drive the meter power or reset lines.
+
+## Using Command Rig Firmware
+
+To use the automated rig firmware:
+
+1. Copy `pico/cpp/firmware/main_rig_command.cpp` over `pico/cpp/src/main.cpp`.
+2. Build and flash with `deploy_pico.ps1`.
+3. Control it from the host:
+
    ```powershell
-   python .\pico_rig_runner.py status
-   ```
-3. Capture both meter UARTs:
-   ```powershell
-   python .\pico_rig_runner.py monitor --meter-port BOTH --duration-ms 5000
-   ```
-4. Optionally rerun the original R34 boot-marker response test:
-   ```powershell
-   python .\pico_rig_runner.py r34 --attempts 10
+   python -m tools.pico_rig_runner status
+   python -m tools.pico_rig_runner monitor --meter-port BOTH --duration-ms 5000
+   python -m tools.pico_rig_runner r34 --attempts 10
    ```
 
 Logs are written to `logs/rig_runs/`.
 
-## 4. Discovery Methodology
-- **Standard Runs:** The Python runner sequences power, reset, UART transmit, monitor, and marker-response commands.
-- **Time-Sensitive Runs:** The Pico firmware provides `CYCLE_MARKER` and `RESET_MARKER`. These commands perform a hardware reset (via power cycle or reset pads, respectively) and arm marker detection immediately, ensuring the PC cannot miss the sub-millisecond boot window.
-- **Physical Handshakes:** Some experiments (e.g., R34) require the user to hold the **HOLD/SELECT** button on the meter during the reset window. Follow the runner prompt.
+## Command Rig Reference
 
-## 5. Analyzing Results
-The runner logs raw firmware output from both internal and external pads.
-- **Target:** Look for Protocol ID `41` (Gateway) or `FD`/`F9` markers.
-- **Goal:** Remote mode control using the `0xA5` command prefix.
+The runner can send raw commands with:
 
-## 6. Firmware Command Reference
-The runner can send raw commands with `python .\pico_rig_runner.py cmd <command>`. The most useful firmware commands are:
+```powershell
+python -m tools.pico_rig_runner cmd <command>
+```
+
+Supported command firmware operations:
 
 ```text
 PING
@@ -61,3 +80,9 @@ MARKER INT|EXT <timeout_ms> <post_ms> <markers...> RESP <response...>
 CYCLE_MARKER INT|EXT <timeout_ms> <post_ms> <markers...> RESP <response...>
 RESET_MARKER PAD1|PAD2 <duration_ms> INT|EXT <timeout_ms> <post_ms> <markers...> RESP <response...>
 ```
+
+## Experiment Notes
+
+- The command rig is intended for controlled low-voltage bench experiments only.
+- Some tests require manually holding the meter HOLD/SELECT button during the reset window.
+- `CYCLE_MARKER` and `RESET_MARKER` keep timing-sensitive marker detection on the Pico to avoid USB round-trip latency.

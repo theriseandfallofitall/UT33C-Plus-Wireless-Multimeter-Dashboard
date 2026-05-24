@@ -4,8 +4,9 @@
 
 This repository documents and decodes UART output from the UNI-T UT33C+ multimeter.
 
-- `ut33c_plus_final_logger.py` contains the high-level serial reader and decoder.
-- `pico_rig_runner.py` controls the serial-driven Pico rig and logs HIL runs.
+- `ut33c/` contains shared protocol decoding code.
+- `display/` contains the on-screen display apps plus display config, port discovery, protocol wrapper, dependencies, and launch scripts.
+- `tools/` contains host-side logging, capture, controller, and Pico-rig tools.
 - `README.md` gives the project overview and research summary.
 - `docs/PROTOCOL_MAP.md` records the 10-byte protocol observations and frame details.
 - `docs/HARDWARE_SPEC.md` describes the automated rig and HIL integration steps.
@@ -26,22 +27,34 @@ python -m venv .venv
 pip install pyserial
 ```
 
+Or install the repo dependency set:
+
+```powershell
+pip install -r requirements.txt
+```
+
 Run the logger against a Windows serial port:
 
 ```powershell
-python .\ut33c_plus_final_logger.py
+python -m tools.final_logger
 ```
 
 The logger writes a timestamped CSV under `logs/` automatically:
 
 ```powershell
-python .\ut33c_plus_final_logger.py
+python -m tools.final_logger
 ```
 
-Check that the script compiles:
+Run the decoder regression tests:
 
 ```powershell
-python -m py_compile .\ut33c_plus_final_logger.py .\pico_rig_runner.py
+python -m unittest tests.test_decoder
+```
+
+Check that the main Python tools compile:
+
+```powershell
+python -m py_compile .\ut33c/decoder.py .\tools/final_logger.py .\tools/pico_rig_runner.py
 ```
 
 Build the Pico firmware:
@@ -53,20 +66,20 @@ pio run -d .\pico\cpp
 Monitor both meter UARTs through the Pico rig:
 
 ```powershell
-python .\pico_rig_runner.py monitor --meter-port BOTH --duration-ms 5000
+python -m tools.pico_rig_runner monitor --meter-port BOTH --duration-ms 5000
 ```
 
 ## Coding Style & Naming Conventions
 
-Use Python 3 with type hints where they clarify data shape. Keep protocol helpers small and deterministic, as in `checksum_ok`, `decode_frame`, and `find_frames`. Prefer `snake_case` for functions and variables, `PascalCase` for dataclasses, and uppercase hex literals such as `0xAB`.
+Use Python 3 with type hints where they clarify data shape. Keep protocol helpers small and deterministic, as in `checksum_ok`, `decode_frame`, and `pop_next_frame`. Prefer `snake_case` for functions and variables, `PascalCase` for dataclasses, and uppercase hex literals such as `0xAB`.
 
 When changing decoder behavior, preserve existing CLI flags unless there is a clear compatibility reason. Keep serial settings explicit: baud, bytesize, parity, stopbits, and timeout.
 
 ## Testing Guidelines
 
-No automated test suite is committed yet. For decoder changes, add focused tests under `tests/test_*.py` using captured frame bytes from the protocol notes. Cover checksum rejection, marker alignment, signed 16-bit conversion, known voltage ranges, and unknown valid ranges.
+Decoder regression tests live in `tests/test_decoder.py` and use curated capture logs from `logs/`. For decoder changes, add focused tests under `tests/test_*.py` using captured frame bytes from the protocol notes. Cover checksum rejection, marker alignment, signed conversion, known voltage ranges, and unknown valid ranges.
 
-Until tests exist, run `python -m py_compile .\ut33c_plus_final_logger.py .\pico_rig_runner.py`, `pio run -d .\pico\cpp`, and manually validate with a real or recorded serial stream.
+Before shipping decoder or firmware changes, run `python -m unittest tests.test_decoder`, `python -m py_compile .\ut33c/decoder.py .\tools/final_logger.py .\tools/pico_rig_runner.py`, `pio run -d .\pico\cpp`, and manually validate with a real or recorded serial stream when hardware is available.
 
 ## Commit & Pull Request Guidelines
 

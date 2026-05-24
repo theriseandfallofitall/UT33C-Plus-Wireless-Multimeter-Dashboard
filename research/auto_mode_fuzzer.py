@@ -42,14 +42,14 @@ def run_fuzzer():
         print(f"   TESTING BAUD RATE {baud}")
         print(f"==============================")
         
-        subprocess.run(['python', 'pico_rig_runner.py', 'cmd', f"UART INT {baud}"], capture_output=True)
+        subprocess.run(['python', '-m', 'tools.pico_rig_runner', 'cmd', f"UART INT {baud}"], capture_output=True)
         time.sleep(0.5)
 
         for cmd in COMMANDS_TO_TEST:
             rig_cmd = f"CYCLE_MARKER INT 2000 500 FD RESP {cmd}"
             
             result = subprocess.run(
-                ['python', 'pico_rig_runner.py', 'cmd', rig_cmd],
+                ['python', '-m', 'tools.pico_rig_runner', 'cmd', rig_cmd],
                 capture_output=True,
                 text=True
             )
@@ -58,10 +58,10 @@ def run_fuzzer():
             
             # Switch back to 2400 to read the result!
             if baud != "2400":
-                subprocess.run(['python', 'pico_rig_runner.py', 'cmd', "UART INT 2400"], capture_output=True)
+                subprocess.run(['python', '-m', 'tools.pico_rig_runner', 'cmd', "UART INT 2400"], capture_output=True)
                 time.sleep(0.1)
                 # Then we monitor to see if it changed
-                mon_result = subprocess.run(['python', 'pico_rig_runner.py', 'cmd', "MONITOR INT 500"], capture_output=True, text=True)
+                mon_result = subprocess.run(['python', '-m', 'tools.pico_rig_runner', 'cmd', "MONITOR INT 500"], capture_output=True, text=True)
                 output += mon_result.stdout
 
             match = re.search(r'DATA INT.*?AB CD 01 ([0-9A-F]{2})', output, re.DOTALL)

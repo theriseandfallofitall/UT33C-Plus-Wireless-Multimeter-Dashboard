@@ -5,11 +5,11 @@ import re
 import sys
 from pathlib import Path
 
-# Add project root to path to allow importing the logger
+# Add project root to path to allow importing the shared decoder.
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from ut33c_plus_final_logger import decode_reading, checksum_ok
+from ut33c.decoder import decode_reading, checksum_ok
 
 class TestDecoder(unittest.TestCase):
 
@@ -72,7 +72,7 @@ class TestDecoder(unittest.TestCase):
         mode, val, unit, _ = decode_reading(frame)
         self.assertEqual(mode, "200k Ohm")
         self.assertEqual(val, "143.7")
-        self.assertEqual(unit, "kΩ")
+        self.assertEqual(unit, "kOhm")
 
         # 2M Range, 0.01 scale (was 0.001)
         frame = self.load_fixture("1,05_Meg_ohm_in_200m_mode.log")
@@ -81,7 +81,7 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(mode, "2M Ohm")
         # Raw value is 105, correct scale is 0.01 -> 1.05
         self.assertEqual(val, "1.05")
-        self.assertEqual(unit, "MΩ")
+        self.assertEqual(unit, "MOhm")
 
     def test_temperature_conversion(self):
         # Celsius - straightforward scaling
@@ -89,7 +89,7 @@ class TestDecoder(unittest.TestCase):
         mode, val, unit, _ = decode_reading(frame)
         self.assertEqual(mode, "Celsius")
         self.assertTrue(val in ["17.9", "18.2"]) # Log has fluctuations
-        self.assertEqual(unit, "°C")
+        self.assertEqual(unit, "deg C")
 
         # Fahrenheit - requires C->F conversion
         frame = self.load_fixture("fahrenheit_measurement_at_64_f.log")
@@ -98,7 +98,7 @@ class TestDecoder(unittest.TestCase):
         mode, val, unit, _ = decode_reading(frame)
         self.assertEqual(mode, "Fahrenheit")
         self.assertAlmostEqual(float(val), 64.0, delta=1.0)
-        self.assertEqual(unit, "°F")
+        self.assertEqual(unit, "deg F")
 
     def test_special_states_continuity_diode(self):
         # Diode voltage drop
@@ -113,7 +113,7 @@ class TestDecoder(unittest.TestCase):
         mode, val, unit, _ = decode_reading(frame)
         self.assertEqual(mode, "Continuity")
         self.assertEqual(val, "OL")
-        self.assertEqual(unit, "Ω")
+        self.assertEqual(unit, "Ohm")
         
     def test_200mv_offset(self):
         frame = self.load_fixture("power_on_to_200mv_setting_with_nothing_connected.log")

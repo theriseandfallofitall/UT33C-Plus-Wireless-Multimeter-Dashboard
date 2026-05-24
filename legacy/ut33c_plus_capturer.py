@@ -183,9 +183,9 @@ def main():
     log_data = []
     if os.path.exists(args.out):
         try:
-            with open(args.out, 'r') as f:
+            with open(args.out, "r", encoding="utf-8") as f:
                 log_data = json.load(f)
-        except:
+        except (OSError, json.JSONDecodeError):
             print(f"Warning: Could not load existing {args.out}. Starting fresh.")
 
     try:
@@ -209,7 +209,7 @@ def main():
                         result = run_test(ser, TEST_CASES[idx])
                         if result:
                             log_data.append(result)
-                            with open(args.out, 'w') as f:
+                            with open(args.out, "w", encoding="utf-8") as f:
                                 json.dump(log_data, f, indent=2)
                             print(f"Saved to {args.out}")
                     else:

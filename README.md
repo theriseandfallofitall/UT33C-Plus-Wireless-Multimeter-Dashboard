@@ -1,61 +1,91 @@
-# UNI-T UT33C+ UART Decode & Reverse Engineering
+# UNI-T UT33C+ UART Decode and Reverse Engineering
 
-This repository contains the full research and toolset for decoding the hidden high-speed UART telemetry stream from the UNI-T UT33C+ multimeter.
+This repository contains the research notes, host tools, Pico firmware, and display tools used to decode the hidden UART telemetry stream from the UNI-T UT33C+ multimeter.
 
----
+The project has two main parts:
 
-## ⚡ Quick Start
+- Reverse engineering: protocol discovery, hardware-in-the-loop rig control, raw captures, and research notes.
+- On-screen display: live decoded readings, graphing, CSV logging, and snapshot capture.
 
-### 1. Monitor & Log (PC Side)
-If you have the multimeter connected to your PC via an FTDI or USB-Serial adapter, use the final decoded logger:
+The Pico code follows the same split:
+
+- `pico/cpp/src/main.cpp`: passive UART passthrough firmware for direct display/logging workflows.
+- `pico/cpp/firmware/main_rig_command.cpp`: serial-controlled rig firmware used for automated reverse-engineering experiments.
+
+## Quick Start
+
+Create a virtual environment and install the host dependencies:
+
 ```bash
-python ut33c_plus_final_logger.py
+python -m venv .venv
+pip install -r requirements.txt
 ```
-*Supports: Voltage, Current, Resistance, Continuity, Celsius, Fahrenheit.*
 
-### 2. Automated Testing (YD-RP2040)
-If you are building the automated test rig:
-- **Firmware:** Located in `pico/cpp/` (PlatformIO).
-- **Deployment:** Use `.\deploy_pico.ps1` once to build and upload the serial-controlled rig firmware.
-- **Testing:** Use `python pico_rig_runner.py status`, `python pico_rig_runner.py monitor`, or `python pico_rig_runner.py r34` to run experiments without reflashing.
-- **Wiring:** See [docs/HARDWARE_SPEC.md](docs/HARDWARE_SPEC.md).
+### Direct UART logging
 
----
+Use this when the meter is connected through a USB-serial adapter, or through the Pico passthrough firmware:
 
-## 🚀 Research & Discoveries
+```bash
+python -m tools.final_logger
+```
 
-### 🧠 Chipset Identification
-The meter has been identified as likely using the **SDIC SD7501** SoC. This is based on its unique 10-byte UART protocol and 2400 baud telemetry.
+### Big-screen display
 
-### 🔓 Diagnostic Gateway (State 41)
-We discovered a hidden diagnostic state (**Protocol ID 41**) in earlier reset/null-burst work. The current serial-controlled Pico workflow has mapped the hard-power boot markers across modes; the strongest remaining route is the very early external `F9` window seen with only the HOLD/SELECT button held in Continuity. The combined HOLD/SELECT + Backlight test did not reproduce `F9`, and the device OFF state was silent. See the [Mode Change Plan](docs/MODE_CHANGE_PLAN.md) and [Testing History](docs/TESTING_HISTORY.md).
+Use the direct display for a normal 2400 baud UART stream:
 
----
+```bash
+python -m display.big_screen_direct
+```
 
-## 📁 Repository Structure
+Use the rig display only when the Pico is running the command rig firmware:
 
-### 🛠 Tools
-*   `ut33c_plus_final_logger.py`: The primary high-level decoder and CSV logger.
-*   `fuzzer_monitor.py`: Long-duration stream logger for the automated rig.
-*   `ut33c_raw_capture.py`: Utility for capturing raw hex frames for new modes.
-*   `deploy_pico.ps1`: Automated build and upload script for the RP2040.
-*   `pico_rig_runner.py`: Host-side controller for repeatable Pico rig tests over USB serial.
+```bash
+python -m display.big_screen_rig
+```
 
-### 📂 Subdirectories
-*   `docs/`: Full technical documentation, protocol maps, and wiring guides.
-*   `pico/`: All firmware for the automated Pi Pico 2 hardware rig (C++ and MicroPython).
-*   `research/`: Discovery scripts used for baud sweeps, brute-forcing, and reset monitoring.
-*   `legacy/`: Older scripts and initial investigation attempts.
-*   `logs/`: Storage for captured session data and CSV logs.
+### Automated reverse-engineering rig
 
----
+The automated rig uses the command firmware and `tools/pico_rig_runner.py`:
 
-## 📝 Technical Documentation Links
-- **[Latest Project Status](docs/STATUS.md)** - Where we left off and current blockers.
-- **[Protocol Specification](docs/PROTOCOL_MAP.md)** - Detailed 10-byte frame breakdown.
-- **[Hardware Specification](docs/HARDWARE_SPEC.md)** - Detailed rig components and logic.
+```bash
+python -m tools.pico_rig_runner status
+python -m tools.pico_rig_runner monitor --meter-port BOTH --duration-ms 5000
+python -m tools.pico_rig_runner r34
+```
 
----
+Build and deploy Pico firmware from the project root:
 
-## ⚠️ Safety Warning
-The internal UART ground is electrically connected to the meter's **COM** lead. **NEVER** connect the meter to a grounded PC while measuring high voltage without opto-isolation.
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy_pico.ps1
+```
+
+See [docs/PICO_GUIDE.md](docs/PICO_GUIDE.md) before flashing, because only one Pico firmware profile should be active at a time.
+
+## Repository Layout
+
+| Path | Purpose |
+| :--- | :--- |
+| `ut33c/` | Shared Python package for protocol decoding and frame parsing. |
+| `display/` | Self-contained on-screen display workflow: apps, display config, port discovery, protocol wrapper, launch scripts, and display dependencies. |
+| `tools/` | Operational host tools for logging, capture, experimental control, and Pico rig control. |
+| `pico/cpp/` | PlatformIO firmware project for the Pico. |
+| `pico/micropython/` | Earlier MicroPython rig experiments. |
+| `research/` | Focused discovery scripts and fuzzing tools. |
+| `legacy/` | Older scripts retained for historical context. |
+| `docs/` | Protocol, hardware, wiring, status, and testing notes. |
+| `docs/README.md` | Documentation index. |
+| `tests/` | Decoder regression tests using captured fixture logs. |
+| `logs/` | Captured local logs and curated decoder fixtures. |
+
+## Current Findings
+
+- The meter emits 10-byte `AB CD` frames at 2400 baud.
+- The likely chipset family is SDIC/Jinghua SD7501 or a close variant.
+- Passive telemetry decoding is working for voltage, current, resistance, continuity, diode, and temperature modes.
+- Remote mode switching was investigated heavily, but no usable command unlock was found. The diagnostic path appears to require a physical button state plus an unknown authorization key.
+
+See [docs/STATUS.md](docs/STATUS.md), [docs/PROTOCOL_MAP.md](docs/PROTOCOL_MAP.md), and [docs/TESTING_HISTORY.md](docs/TESTING_HISTORY.md) for the full research record.
+
+## Safety Warning
+
+The internal UART ground is electrically connected to the meter COM lead. Do not connect the meter to high voltage while it is wired to a grounded PC or Pico USB connection unless you have proper isolation.

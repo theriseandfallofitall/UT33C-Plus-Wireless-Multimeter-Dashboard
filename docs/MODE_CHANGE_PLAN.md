@@ -2,12 +2,12 @@
 
 This document outlines the tactical plan for remotely switching multimeter modes via the internal UART port, based on the identification of the **SD7501** chipset.
 
-## 🎯 Objective
+## Objective
 Transition the meter from its physical dial state (e.g., Continuity) to a software-controlled state (e.g., 20V DC) using the discovered **State 41** gateway.
 
 ---
 
-## 🛠 Handshake Protocol (Updated through R85)
+## Handshake Protocol (Updated through R85)
 Research indicates that the SD7501 follows a strict "Trigger-Acknowledge-Command" sequence, but it requires physical strapping and precise timing. On this meter, **HOLD and SELECT refer to the same physical button**.
 
 1.  **Strapping:** The user must manually hold the **HOLD/SELECT** button.
@@ -19,7 +19,7 @@ Research indicates that the SD7501 follows a strict "Trigger-Acknowledge-Command
 
 ---
 
-## 🚀 Mode Change Command Set
+## Mode Change Command Set
 Once the gateway is "Unlocked" (Step 4), we will test the following command structures:
 
 ### Phase 1: Virtual Button Press (Safest)
@@ -39,17 +39,17 @@ If the above fail, we may need to write directly to the temporary mode register 
 
 ---
 
-## 📊 Experiment Roadmap (R34+)
+## Experiment Roadmap (R34+)
 
 | ID | Title | Logic | Target Outcome |
 | :--- | :--- | :--- | :--- |
 | **R34-R85** | Completed Marker + Command Probes | Hard reboot with and without HOLD/SELECT held; combined HOLD/SELECT + Backlight; device OFF with both buttons; inject after `FD`, `E0`, and known markers where appropriate | All command probes neutral; OFF state silent; useful marker map discovered |
-| **Next** | Early Passive Repeat | HOLD/SELECT held in Continuity -> external/opto capture of only first 0-100ms | Confirm whether early `F9` is repeatable |
+| **Next** | Early Passive Repeat | HOLD/SELECT held in Continuity, external/opto capture of only first 0-100ms | Confirm whether early `F9` is repeatable |
 | **Then** | Early F9 Probe | Only if `F9` repeats: inject minimal sync immediately after `F9` | Elicit `41`, ACK, or altered boot sequence |
 
 ---
 
-## ⚠️ Risk Mitigation
+## Risk Mitigation
 - **Timeout Window:** The listener window after the `AB FD` marker is likely <50ms. R34 uses the Pico's hardware interrupts to respond instantly.
 - **Checksums:** All commands likely require a trailing checksum: `(Sum of bytes after 0xA5) & 0xFF`.
 - **Current Evidence:** `AB FD` response probes have been neutral. R84 showed HOLD/SELECT + Backlight does not improve the early route. R85 showed device OFF with both buttons is silent. The best remaining route is still the very early external `F9` window seen in R83 with HOLD/SELECT only.

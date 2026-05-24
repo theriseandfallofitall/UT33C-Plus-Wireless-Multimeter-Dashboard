@@ -25,10 +25,12 @@ class CaptureSession:
         self.buffer = []
         self.stop_event = threading.Event()
 
+    @staticmethod
     def get_serial_port():
         import serial.tools.list_ports
         ports = serial.tools.list_ports.comports()
-        if not ports: return None
+        if not ports:
+            return None
         print("\nAvailable Ports:")
         for i, p in enumerate(ports):
             print(f"[{i}] {p.device} ({p.description})")
@@ -36,8 +38,10 @@ class CaptureSession:
             try:
                 choice = input("\nSelect port index: ").strip()
                 idx = int(choice)
-                if 0 <= idx < len(ports): return ports[idx].device
-            except: pass
+                if 0 <= idx < len(ports):
+                    return ports[idx].device
+            except ValueError:
+                pass
             print("Invalid selection.")
 
     def _capture_thread(self, ser):
@@ -49,7 +53,8 @@ class CaptureSession:
 
     def run_test(self):
         name = input("\nEnter Test Name (e.g., '10k Resistor 20k Range'): ").strip()
-        if not name: name = f"Unnamed Test {len(self.tests) + 1}"
+        if not name:
+            name = f"Unnamed Test {len(self.tests) + 1}"
         
         print(f"\nREADY TO CAPTURE: {name}")
         input("Press [ENTER] to START capture...")
@@ -90,11 +95,12 @@ class CaptureSession:
             return
 
         session_name = input("\nEnter a name for this session (for the log file): ").strip()
-        if not session_name: session_name = "Capture_Session"
+        if not session_name:
+            session_name = "Capture_Session"
         
         filename = f"{session_name.replace(' ', '_')}_{int(time.time())}.log"
         
-        with open(filename, "w") as f:
+        with open(filename, "w", encoding="utf-8") as f:
             f.write(f"# SESSION: {session_name}\n")
             f.write(f"# PORT: {self.port} | BAUD: {self.baud}\n")
             f.write(f"# DATE: {time.ctime()}\n\n")
@@ -103,11 +109,11 @@ class CaptureSession:
                 f.write(f"## TEST: {test['name']}\n")
                 f.write(f"RAW_HEX: {test['hex']}\n\n")
         
-        print(f"\n" + "="*40)
+        print("\n" + "="*40)
         print(f"SESSION SAVED TO: {filename}")
         print("="*40)
         print("\n--- CONTENT PREVIEW (Ready to pipe/copy) ---")
-        with open(filename, 'r') as f:
+        with open(filename, "r", encoding="utf-8") as f:
             print(f.read())
         print("="*40)
 
@@ -118,11 +124,13 @@ def main():
     args = parser.parse_args()
 
     port = args.port or CaptureSession.get_serial_port()
-    if not port: return
+    if not port:
+        return
 
     print("\n--- UT33C+ Raw Capture ---")
     test_name = input("Enter Test Name (e.g., '10k_Resistor'): ").strip()
-    if not test_name: test_name = f"Capture_{int(time.time())}"
+    if not test_name:
+        test_name = f"Capture_{int(time.time())}"
 
     # Setup session but we only do one test
     session = CaptureSession(port, args.baud)
@@ -165,13 +173,13 @@ def main():
     if os.path.exists(filename):
         filename = os.path.join(log_dir, f"{base_filename}_{int(time.time())}.log")
 
-    with open(filename, "w") as f:
+    with open(filename, "w", encoding="utf-8") as f:
         f.write(f"# TEST: {test_name}\n")
         f.write(f"# PORT: {session.port} | BAUD: {session.baud}\n")
         f.write(f"# DATE: {time.ctime()}\n\n")
         f.write(f"RAW_HEX: {raw_hex}\n")
 
-    print(f"\n" + "="*40)
+    print("\n" + "="*40)
     print(f"SAVED TO: {filename}")
     print("="*40)
     print("\n--- CONTENT PREVIEW ---")

@@ -2,7 +2,7 @@
 
 This document details how to connect a Raspberry Pi Pico to the UNI-T UT33C+ for fully automated reverse engineering and protocol discovery.
 
-## ⚠️ CRITICAL SAFETY WARNING
+## Critical Safety Warning
 The internal UART Ground of the multimeter is directly connected to the **COM (black probe)** lead. 
 - **DO NOT** connect the multimeter to high voltage while it is wired to the Pi Pico.
 - If the Pico is connected to your PC via USB, your PC's ground is now tied to the multimeter's COM lead. 
@@ -10,7 +10,7 @@ The internal UART Ground of the multimeter is directly connected to the **COM (b
 
 ---
 
-## 🛠 Required Components
+## Required Components
 1. **Raspberry Pi Pico** (or Pico W)
 2. **N-Channel MOSFET** (e.g., 2N7000, BSS138, or IRLZ44N)
 3. **UT33C+ Multimeter** (Opened, with wires soldered to pads)
@@ -18,7 +18,7 @@ The internal UART Ground of the multimeter is directly connected to the **COM (b
 
 ---
 
-## 📍 Pin Mapping Table
+## Pin Mapping Table
 
 | Pico Pin | Name | Connection Target | Function |
 | :--- | :--- | :--- | :--- |
@@ -34,7 +34,7 @@ The internal UART Ground of the multimeter is directly connected to the **COM (b
 
 ---
 
-## ⚡ Power Control Schematic (Inverted Dual-Rail)
+## Power Control Schematic (Inverted Dual-Rail)
 
 To achieve a "True Zero" state and clear internal MCU/ADC registers, we use a dual-MOSFET setup to isolate both the positive and negative rails. This prevents capacitor "leakage" through the MCU's internal protection diodes.
 
@@ -48,14 +48,14 @@ To achieve a "True Zero" state and clear internal MCU/ADC registers, we use a du
 - **Logic:** Active LOW (0 = Meter GND connected to Pico GND).
 - **Function:** Ensures full rail isolation during reset cycles.
 
-### 🚀 Power Cycle Sequence
+### Power Cycle Sequence
 1. **CUT:** GP16 -> LOW, GP17 -> HIGH.
-2. **WAIT:** 1500ms (Full discharge).
+2. **WAIT:** 5000ms recommended for full discharge.
 3. **RESTORE:** GP16 -> HIGH, GP17 -> LOW.
 
 ---
 
-## 🔌 UART Connections
+## UART Connections
 
 ### 1. Internal Pads (High-Speed)
 These are the pads we found auto-transmitting at 2400 baud.

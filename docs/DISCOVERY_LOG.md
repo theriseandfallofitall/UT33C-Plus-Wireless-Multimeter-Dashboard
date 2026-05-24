@@ -3,7 +3,7 @@ Chronological record of technical findings and protocol anomalies.
 
 ---
 
-## 📅 May 24, 2026: Automated HIL Discovery
+## May 24, 2026: Automated HIL Discovery
 
 ### 1. The "Boot/Status" Signature
 *   **Discovery:** Immediately after a power-cycle or Pad 2 Reset, the meter transmits a series of frames with a different Protocol ID.
@@ -92,7 +92,7 @@ Chronological record of technical findings and protocol anomalies.
 ### 18. Celsius Range Byte
 *   **Discovery:** The Celsius dial range reports normal frames as `AB CD 01 16 ...`.
 *   **Observation:** With the current open/unconnected temperature input, frames repeatedly included `00 00 FF 7F 01 95`.
-*   **Impact:** Range byte `16` is confirmed as Celsius. Temperature scaling remains `count * 0.1°C`, but the open-input pattern needs thermocouple fixture validation.
+*   **Impact:** Range byte `16` is confirmed as Celsius. Temperature scaling remains `count * 0.1 deg C`, but the open-input pattern needs thermocouple fixture validation.
 
 ### 19. HOLD/SELECT-Held Continuity Marker
 *   **Discovery:** Holding the HOLD/SELECT button in Continuity changed the external/opto boot marker from the earlier no-button `AB ED` pattern to `AB FD`.
@@ -125,36 +125,36 @@ Chronological record of technical findings and protocol anomalies.
 
 ---
 
-## 📊 Fuzzer Experiment Matrix (Updated May 24, 2026)
+## Fuzzer Experiment Matrix (Updated May 24, 2026)
 
 | Run ID | Meter Mode | Reset Trigger | Strategy | Discovery / Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **R01-R11** | Various | Pad 1/2 | Basic Fuzzing | Found IDs `81` and `41`. Confirmed 2400 baud native filtering. | ✅ Complete |
-| **R12-R19** | Continuity | Pad 1 (Soft) | Adv. Timing | Confirmed ID `41` is transient; NULL blasts do not sustain it. | ✅ Complete |
-| **R20** | Continuity | Pad 1 (Soft) | Stabilization | Gateway is timing-critical and ignores ASCII strings. | ✅ Success |
-| **R25** | Continuity | Pad 1 (Soft) | Hold/Select & Reset | User held the HOLD/SELECT button. Found new markers: `F9` and `81`. | ✅ Success |
-| **R27** | Continuity | Pad 1 (Soft) | Auto Discovery | Confirmed **Physical Button is Mandatory** for gateway entry. | ✅ Success |
-| **R30-R31** | Continuity | Pad 2 (Hard) | Hard-Power | Identified early boot markers (`E0`, `AB FD`) after full power cycle. | ✅ Success |
-| **R33** | Continuity | Pad 2 (Hard) | Hard-Power | Discovered `AB FD` marker consistently appears at **1.2s offset**. | ✅ Success |
-| **R34-R42** | Continuity | Hard/Soft Reset | Command Sweeps | Tested A5, legacy AB, full frames, direct range, and host-driven NULL gateway paths; no ACK or mode transition. | ✅ Neutral |
-| **R43-R45** | Continuity, no held button | Pad 2 (Hard) | External Marker Analysis | Confirmed external marker is `AB ED` in no-button Continuity while internal remains `AB FD`. | ✅ Success |
-| **R46-R49** | 200mV DC | Pad 2 (Hard) | 200mV Marker + Command Tests | Confirmed `01 17` telemetry and found external marker changes to `AB FD` in 200mV mode. Command probes remained neutral. | ✅ Success |
-| **R50-R53** | 2000mV DC | Pad 2 (Hard) | 2000mV Marker + Command Tests | Discovered range byte `07`; command probes remained neutral. External marker mostly `FD`, sometimes `ED` during probes. | ✅ Success |
-| **R54-R57** | 20V DC | Pad 2 (Hard) | Fast 20V Marker + Command Tests | Confirmed `01 0D` telemetry and `AB FD` markers on both channels after latency fix. Command probes remained neutral. | ✅ Success |
-| **R58-R61** | 200V DC | Pad 2 (Hard) | Fast 200V Marker + Command Tests | Discovered range byte `15`; `AB FD` markers on both channels. Command probes remained neutral. | ✅ Success |
-| **R62-R65** | 600V DC | Pad 2 (Hard) | Fast 600V Marker + Command Tests | Discovered range byte `18`; `AB FD` markers on both channels. Command probes remained neutral. | ✅ Success |
-| **R66-R69** | 600V AC | Pad 2 (Hard) | Fast 600VAC Marker + Command Tests | Discovered range byte `11`; `AB FD` markers on both channels. Command probes remained neutral. | ✅ Success |
-| **R70-R73** | 200V AC | Pad 2 (Hard) | Fast 200VAC Marker + Command Tests | Discovered range byte `12`; `AB FD` markers on both channels. Command probes remained neutral. | ✅ Success |
-| **R74-R77** | Celsius | Pad 2 (Hard) | Fast Celsius Marker + Command Tests | Confirmed `01 16` telemetry and `AB FD` markers on both channels. Command probes remained neutral. | ✅ Success |
-| **R78-R80** | Continuity + HOLD/SELECT held | Pad 2 (Hard) | Button-Held Marker + Command Tests | Found button-held external Continuity uses `AB FD` instead of earlier no-button `AB ED`; command probes remained neutral. | ✅ Discovery |
-| **R81-R83** | Continuity + HOLD/SELECT held | Pad 2 (Hard) | Button-Held Repeat + Passive Early Capture | Repeated the same physical-button condition; passive early capture saw `FF`, `F0`, and `F9` before `E0`. | ✅ Discovery |
-| **R84** | Continuity + HOLD/SELECT + Backlight held | Pad 2 (Hard) | Passive Combined-Button Capture | External marker mixed `AB ED`/`AB FD`; early `F9` did not recur. | ✅ Discovery |
-| **R85** | Device OFF + HOLD/SELECT + Backlight held | Pad 2 (Hard) | Passive Off-State Capture | No internal or external UART bytes on five clean power restores. | ✅ Neutral |
-| **R86-R89** | Continuity + HOLD/SELECT held | Pad 2 (Hard) | F9 Repeatability Tests | 1.5s and 5.0s discharge attempts failed to reproduce early `F9` on external UART. | ✅ Neutral |
-| **R90** | Continuity + HOLD/SELECT held | Pad 1 (Soft) | Soft-Reset Boot Window Test | Pulsing Pad 1 while power was ON skipped the early boot markers entirely. | ✅ Discovery |
-| **R91** | Continuity + HOLD/SELECT held | Pad 2 (Hard) | Autonomous Multi-Baud Sweep | Exhaustive sweep of 810 payload permutations (0xA5 + 00-FF, legacy syncs, full frames) injected immediately after `FD` marker at 2400, 9600, and 115200 baud. All attempts ignored. | ✅ Neutral (Conclusive) |
+| **R01-R11** | Various | Pad 1/2 | Basic Fuzzing | Found IDs `81` and `41`. Confirmed 2400 baud native filtering. | Complete |
+| **R12-R19** | Continuity | Pad 1 (Soft) | Adv. Timing | Confirmed ID `41` is transient; NULL blasts do not sustain it. | Complete |
+| **R20** | Continuity | Pad 1 (Soft) | Stabilization | Gateway is timing-critical and ignores ASCII strings. | Success |
+| **R25** | Continuity | Pad 1 (Soft) | Hold/Select & Reset | User held the HOLD/SELECT button. Found new markers: `F9` and `81`. | Success |
+| **R27** | Continuity | Pad 1 (Soft) | Auto Discovery | Confirmed **Physical Button is Mandatory** for gateway entry. | Success |
+| **R30-R31** | Continuity | Pad 2 (Hard) | Hard-Power | Identified early boot markers (`E0`, `AB FD`) after full power cycle. | Success |
+| **R33** | Continuity | Pad 2 (Hard) | Hard-Power | Discovered `AB FD` marker consistently appears at **1.2s offset**. | Success |
+| **R34-R42** | Continuity | Hard/Soft Reset | Command Sweeps | Tested A5, legacy AB, full frames, direct range, and host-driven NULL gateway paths; no ACK or mode transition. | Neutral |
+| **R43-R45** | Continuity, no held button | Pad 2 (Hard) | External Marker Analysis | Confirmed external marker is `AB ED` in no-button Continuity while internal remains `AB FD`. | Success |
+| **R46-R49** | 200mV DC | Pad 2 (Hard) | 200mV Marker + Command Tests | Confirmed `01 17` telemetry and found external marker changes to `AB FD` in 200mV mode. Command probes remained neutral. | Success |
+| **R50-R53** | 2000mV DC | Pad 2 (Hard) | 2000mV Marker + Command Tests | Discovered range byte `07`; command probes remained neutral. External marker mostly `FD`, sometimes `ED` during probes. | Success |
+| **R54-R57** | 20V DC | Pad 2 (Hard) | Fast 20V Marker + Command Tests | Confirmed `01 0D` telemetry and `AB FD` markers on both channels after latency fix. Command probes remained neutral. | Success |
+| **R58-R61** | 200V DC | Pad 2 (Hard) | Fast 200V Marker + Command Tests | Discovered range byte `15`; `AB FD` markers on both channels. Command probes remained neutral. | Success |
+| **R62-R65** | 600V DC | Pad 2 (Hard) | Fast 600V Marker + Command Tests | Discovered range byte `18`; `AB FD` markers on both channels. Command probes remained neutral. | Success |
+| **R66-R69** | 600V AC | Pad 2 (Hard) | Fast 600VAC Marker + Command Tests | Discovered range byte `11`; `AB FD` markers on both channels. Command probes remained neutral. | Success |
+| **R70-R73** | 200V AC | Pad 2 (Hard) | Fast 200VAC Marker + Command Tests | Discovered range byte `12`; `AB FD` markers on both channels. Command probes remained neutral. | Success |
+| **R74-R77** | Celsius | Pad 2 (Hard) | Fast Celsius Marker + Command Tests | Confirmed `01 16` telemetry and `AB FD` markers on both channels. Command probes remained neutral. | Success |
+| **R78-R80** | Continuity + HOLD/SELECT held | Pad 2 (Hard) | Button-Held Marker + Command Tests | Found button-held external Continuity uses `AB FD` instead of earlier no-button `AB ED`; command probes remained neutral. | Discovery |
+| **R81-R83** | Continuity + HOLD/SELECT held | Pad 2 (Hard) | Button-Held Repeat + Passive Early Capture | Repeated the same physical-button condition; passive early capture saw `FF`, `F0`, and `F9` before `E0`. | Discovery |
+| **R84** | Continuity + HOLD/SELECT + Backlight held | Pad 2 (Hard) | Passive Combined-Button Capture | External marker mixed `AB ED`/`AB FD`; early `F9` did not recur. | Discovery |
+| **R85** | Device OFF + HOLD/SELECT + Backlight held | Pad 2 (Hard) | Passive Off-State Capture | No internal or external UART bytes on five clean power restores. | Neutral |
+| **R86-R89** | Continuity + HOLD/SELECT held | Pad 2 (Hard) | F9 Repeatability Tests | 1.5s and 5.0s discharge attempts failed to reproduce early `F9` on external UART. | Neutral |
+| **R90** | Continuity + HOLD/SELECT held | Pad 1 (Soft) | Soft-Reset Boot Window Test | Pulsing Pad 1 while power was ON skipped the early boot markers entirely. | Discovery |
+| **R91** | Continuity + HOLD/SELECT held | Pad 2 (Hard) | Autonomous Multi-Baud Sweep | Exhaustive sweep of 810 payload permutations (0xA5 + 00-FF, legacy syncs, full frames) injected immediately after `FD` marker at 2400, 9600, and 115200 baud. All attempts ignored. | Neutral (Conclusive) |
 
-### 🚀 Future Targets (Remaining to be tried):
+### Future Targets (Remaining to be tried):
 1.  **EEPROM Corruption via WDT:** Hammering Pad 1 Soft Reset while blasting junk data to intentionally corrupt the RAM/EEPROM bounds check.
 2.  **Logic Analyzer Trace:** Capturing the physical factory calibration process with a logic analyzer (if possible) to find the true multi-byte OEM authorization key.
 
@@ -162,7 +162,7 @@ Chronological record of technical findings and protocol anomalies.
 
 ---
 
-## 🛠 Hardware Mapping (YD-RP2040)
+## Hardware Mapping (YD-RP2040)
 | Function | Pin | Logic |
 | :--- | :--- | :--- |
 | Internal TX | GP1 | 2400 Baud |

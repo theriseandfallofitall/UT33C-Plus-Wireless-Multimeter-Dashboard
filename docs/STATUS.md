@@ -1,51 +1,46 @@
-## 🎯 Current Status
-**Reverse-Engineering Concluded.** The project has successfully mapped the UART telemetry protocol and identified the hardware requirements and timing for the diagnostic bootloader gateway. However, after exhaustive autonomous multi-baud fuzzing, we have concluded that remote mode switching is locked behind an unknown (likely multi-byte) authorization key.
+# Current Status
 
-## 🏆 Major Discoveries (May 24, 2026)
-1.  **State 41 Unlock:** Discovered that a **NULL burst** during Soft Reset locks the MCU into Protocol ID `41` (Awaiting Command). This is our primary target for future "handshake" attempts.
-2.  **Physical Proof:** Confirmed that RX injections cause measurable reflections on the TX line, proving the electrical path to the MCU is valid.
-3.  **Physical Button Mandatory:** Found that entering diagnostic mode requires holding the physical HOLD/SELECT button during the reset sequence. Without it, the MCU ignores all UART injection.
-4.  **Early Boot Markers:** Identified `E0` and `AB FD` markers occurring immediately after a hard power-on reset, providing a target window for early sync.
-5.  **Inverted Dual-Rail Power:** Perfected the power-cycling logic required to fully clear internal MCU and ADC registers.
-6.  **Mode/Button-Dependent External Marker:** Confirmed the external/opto UART emits `AB ED` in Continuity with no held button, but `AB FD` in other characterized modes and in Continuity when HOLD/SELECT is held.
-7.  **2000mV Range Byte:** Confirmed 2000mV mode uses range byte `07`.
-8.  **Fast Marker Injection:** Updated Pico firmware to transmit response bytes before USB logging on marker match.
-9.  **200V Range Byte:** Confirmed 200V mode uses range byte `15`.
-10. **600V Range Byte:** Confirmed 600V mode uses range byte `18`.
-11. **600VAC Range Byte:** Confirmed 600VAC mode uses range byte `11`.
-12. **200VAC Range Byte:** Confirmed 200VAC mode uses range byte `12`.
-13. **Celsius Range Byte:** Confirmed Celsius mode uses range byte `16`.
-14. **Button-State Marker Dependency:** Holding the HOLD/SELECT button in Continuity changed the external/opto marker from earlier no-button `AB ED` to `AB FD`.
-15. **Button-Held Early F9:** Passive HOLD/SELECT-held Continuity capture reproduced an early external `F9` before `E0` and `AB FD`. However, subsequent R86-R89 attempts were unable to repeat it reliably, suggesting it depends on specific power-rail decay states.
-16. **Combined Button State:** Holding HOLD/SELECT plus Backlight in Continuity produced mixed external `AB ED`/`AB FD` markers and did not reproduce early `F9`.
-17. **OFF State Is Silent:** Device OFF with HOLD/SELECT plus Backlight held produced no UART output on either channel.
-18. **Firmware Command: RESET_MARKER:** Added a new command to the Pico rig to eliminate USB latency when watching for boot markers immediately after a soft or hard reset.
-19. **Discharge Delay Requirement:** Discovered that a **5-second** dual-rail power-off delay is necessary for a "True Zero" reset of the MCU and ADC registers.
-20. **Handshake Lockout:** Exhaustive autonomous fuzzing (R91) proved that standard single-byte or full-frame payloads injected immediately after the boot marker at any standard baud rate will not unlock the device.
+Active reverse engineering is wrapped up. The project has mapped the passive UART telemetry protocol well enough for reliable logging and display. Remote mode switching was investigated with the Pico rig, but the command path appears to be locked behind an unknown authorization key.
 
-## 🧠 Core Assumptions (For Handoff)
-*   **Assumption 1:** The chipset is an **SDIC SD7501** (or close variant).
-*   **Assumption 2:** State `41` is a "Bootloader Ready" signal (ASCII 'A').
-*   **Assumption 3:** The command gateway requires the **`0xA5`** binary prefix followed by an unknown OEM password.
+## Repository State
 
-## 🚀 Mode Change Roadmap
-Active fuzzing for remote mode switching has been suspended. The protocol mapping is complete enough for passive telemetry logging.
+- Decoder and display tools are usable for passive telemetry.
+- The shared decoder lives in `ut33c/decoder.py`.
+- `display/big_screen_direct.py` is the recommended display for direct 2400 baud capture or Pico passthrough.
+- `display/big_screen_rig.py` is for the serial-controlled Pico command rig.
+- `pico/cpp/src/main.cpp` currently contains the passive passthrough firmware.
+- `pico/cpp/firmware/main_rig_command.cpp` contains the automated command rig firmware.
 
-## 📝 TODO: Next Research Phase
-*   [x] **R84: HOLD/SELECT + Backlight Continuity Test:** Ten passive full power cycles showed internal `AB FD` every time, external mixed `AB ED`/`AB FD`, and no early `F9`.
-*   [x] **R85: Device OFF + Both Buttons Test:** Five passive full power restores produced no internal or external UART output. Rig power was returned to OFF after the test.
-*   [x] **R86-R89: F9 Repeatability Tests:** Attempted to repeat early external `F9` with HOLD/SELECT held and varied discharge delays; `F9` did not recur.
-*   [x] **R90: Soft-Reset (Pad 1) Boot Window Test:** Pulsing Pad 1 while power was ON skipped the early boot markers entirely.
-*   [x] **R91: Autonomous Multi-Baud Sweep:** Completed 810 permutations of zero-latency payload injections at 2400, 9600, and 115200 baud. All attempts failed to trigger a mode switch.
+## Major Discoveries
 
-## 📍 Where We Left Off
-The project is currently wrapped up. The 10-byte telemetry protocol is mapped and documented. The YD-RP2040 rig firmware is stable and supports zero-latency marker detection (`CYCLE_MARKER` / `RESET_MARKER`). The diagnostic bootloader exists and requires physical button holding, but the software key to unlock it remains unknown. Future attempts would likely require capturing a factory logic analyzer trace or performing sophisticated fault injection (voltage glitching) to bypass the password check.
+1. Big-screen display tools were added for live readings, graphing, CSV logging, and snapshots.
+2. Missing range bytes were implemented: `0x07` 2000mV DC, `0x11` 600V AC, `0x12` 200V AC, `0x15` 200V DC, and `0x18` 600V DC.
+3. The Pico passthrough firmware can act as a passive USB-to-UART adapter without driving power or reset lines.
+4. A NULL burst during soft reset can expose protocol ID `41`, interpreted as a gateway or ready state.
+5. RX injection was physically verified through reflections on the meter TX line.
+6. Entering the diagnostic path requires the physical HOLD/SELECT button during reset.
+7. Hard power cycling with dual-rail isolation is the only reliable way to reach the early boot marker window.
+8. A 5-second rail-off delay is recommended for repeatable "true zero" resets.
+9. The external/opto boot marker depends on dial mode and button state.
+10. Exhaustive single-byte, full-frame, and multi-baud probes did not unlock remote mode switching.
 
----
+## Current Assumptions
 
-## 📂 Key Files
-*   `ut33c_plus_final_logger.py`: The production PC tool for logging data.
-*   `pico_rig_runner.py`: Host-side controller for repeatable Pico rig tests.
-*   `pico/cpp/src/main.cpp`: Serial-controlled PlatformIO C++ firmware for the Pico rig.
-*   `docs/PICO_WIRING.md`: Detailed wiring for the automated rig.
-*   `docs/PROTOCOL_MAP.md`: Detailed breakdown of hex codes and formulas.
+- The chipset is an SDIC/Jinghua SD7501-like part.
+- Protocol ID `41` is a bootloader or authorization-ready signal.
+- The command path probably uses an `0xA5` binary prefix plus an unknown OEM password or key.
+
+## Research Conclusion
+
+The telemetry protocol is usable, but remote mode switching is not currently practical from the known UART pads. Future work would likely require a factory logic analyzer capture, firmware extraction, or fault-injection work instead of more blind UART fuzzing.
+
+## Key Files
+
+| File | Purpose |
+| :--- | :--- |
+| `ut33c/` | Shared protocol decoder package. |
+| `display/` | On-screen display apps plus display config, port discovery, protocol wrapper, dependencies, and launch scripts. |
+| `tools/` | Host-side logging, capture, controller, and rig tools. |
+| `docs/PROTOCOL_MAP.md` | Frame and range-byte reference. |
+| `docs/TESTING_HISTORY.md` | Chronological HIL run history. |
+| `docs/PICO_GUIDE.md` | Pico firmware profile guide. |

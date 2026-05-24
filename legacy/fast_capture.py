@@ -11,7 +11,7 @@ for _ in range(10):
         ser = serial.Serial(port, baud, timeout=0.1)
         print("Connected!")
         break
-    except:
+    except serial.SerialException:
         time.sleep(0.5)
 
 if ser:

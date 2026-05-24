@@ -39,19 +39,29 @@ Comparative research suggests the MCU expects a **Command Prefix** immediately a
 *   **Candidate 2:** `0x55` (Sync byte).
 *   **Candidate 3:** `0x06` (ACK).
 
-## Automation Logic (`pico/cpp/src/main.cpp`)
-The Pico now runs a persistent serial-controlled firmware. It is flashed once, then the PC drives each experiment over USB serial.
+## Firmware Profiles
+
+The PlatformIO project supports two firmware profiles:
+
+- `pico/cpp/src/main.cpp` is the passive passthrough build used for display and direct logging.
+- `pico/cpp/firmware/main_rig_command.cpp` is the serial-controlled hardware-in-the-loop rig firmware.
+
+Copy the command rig source over `src/main.cpp` before flashing when automated power, reset, transmit, or marker-response control is required.
+
+## Command Rig Automation Logic
+
+When the command rig firmware is active, the PC drives each experiment over USB serial.
 
 1.  **Inverted Dual-Rail Power Cycle:** Cuts both 3.3V and GND for 5.0s (updated from 1.5s) to ensure full capacitor discharge and "True Zero" resets.
 2.  **Reusable Rig Primitives:** Exposes power, reset, UART baud, raw transmit, NULL burst, monitor, and marker-response commands.
 3.  **Time-Critical Marker Response:** `CYCLE_MARKER` performs the hard power cycle and immediately watches for boot markers (`41`, `FD`, `ED`, `F9`, or other selected bytes) before injecting a response, avoiding host USB latency during the critical window. `RESET_MARKER` performs this same zero-latency watch immediately after pulsing Pad 1 or Pad 2.
 
 ## Monitoring & Logging
-Use `python pico_rig_runner.py ...` to control and log the rig without reflashing firmware.
-- `python pico_rig_runner.py status` checks firmware health.
-- `python pico_rig_runner.py monitor --meter-port BOTH --duration-ms 5000` captures raw UART output.
-- `python pico_rig_runner.py r34 --attempts 10` reruns the original marker-response experiment.
-- For current research, use `python pico_rig_runner.py cmd ...` or focused Python snippets with `PicoRig` to run early-window captures such as the R83 HOLD/SELECT-held external `F9` repeatability test.
+Use `python -m tools.pico_rig_runner ...` to control and log the rig without reflashing firmware.
+- `python -m tools.pico_rig_runner status` checks firmware health.
+- `python -m tools.pico_rig_runner monitor --meter-port BOTH --duration-ms 5000` captures raw UART output.
+- `python -m tools.pico_rig_runner r34 --attempts 10` reruns the original marker-response experiment.
+- For current research, use `python -m tools.pico_rig_runner cmd ...` or focused Python snippets with `PicoRig` to run early-window captures such as the R83 HOLD/SELECT-held external `F9` repeatability test.
 
 Logs are saved to `logs/rig_runs/`.
 - `DATA INT ...` indicates data from the high-speed internal pads.

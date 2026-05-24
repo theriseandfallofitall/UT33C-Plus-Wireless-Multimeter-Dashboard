@@ -10,8 +10,8 @@ def test_baud(port, baud):
             ser.flush()
             time.sleep(0.5)
             # Switch back to 2400 to read response
-    except:
-        pass
+    except serial.SerialException:
+        return
 
     try:
         with serial.Serial(port, 2400, timeout=0.5) as ser:
