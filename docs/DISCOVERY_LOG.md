@@ -44,6 +44,14 @@ Chronological record of technical findings and protocol anomalies.
 *   **Verification:** Experiment R27 confirmed that the MCU ignores all UART activity unless a physical button (SELECT or HOLD) is held during the reset window.
 *   **Timing:** The bootloader listener window opens approximately **1.2 seconds** after a Hard Power-ON, signaled by an `AB FD` marker.
 
+### 10. Soft vs Hard Reset Limitations
+*   **Discovery:** **Soft Reset (Pad 1)** is unreliable for entering State 41 when physical buttons are held. The MCU often "short-circuits" the listener window and proceeds to standard measurement.
+*   **Solution:** **Hard Power-ON Reset (via dual-rail MOSFETs)** provides the most consistent entry point for the diagnostic gateway.
+
+### 11. Timing Criticality of Command Injection
+*   **Finding:** The "Diagnostic Door" is only open for a few tens of milliseconds after the `AB FD` marker. 
+*   **Requirement:** Commands like `0xA5` must be injected with high precision immediately upon detecting the marker, making the use of hardware interrupts on the Pico essential for the next phase.
+
 ---
 
 ## 📊 Fuzzer Experiment Matrix (Updated May 24, 2026)
