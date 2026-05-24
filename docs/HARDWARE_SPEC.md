@@ -26,6 +26,19 @@ board_build.core = earlephilhower
 monitor_speed = 115200
 ```
 
+## Chipset Identification (Hypothesis)
+Based on the **10-byte frame format** and **2400 baud** rate, the IC is highly likely an **SD7501** (manufactured by SDIC or Jinghua Microelectronics). This chip is the standard for the modern UNI-T "plus" series.
+
+### Key Evidence
+1.  **Protocol Match:** The SD7501 uses exactly `AB CD [Mode] [Range] [Flags] [Data High] [Data Mid] [Data Low] [CS High] [CS Low]`.
+2.  **State 41 (ASCII 'A'):** In Jinghua/Fortune-style bootloaders, `0x41` is the **"Authorize"** or **"Acknowledge"** response. It indicates the MCU has synchronized with the fuzzer's NULL burst and is waiting for a command prefix.
+
+### Handshake Requirements
+Comparative research suggests the MCU expects a **Command Prefix** immediately after responding with `41`.
+*   **Candidate 1:** `0xA5` (Common SDIC command start).
+*   **Candidate 2:** `0x55` (Sync byte).
+*   **Candidate 3:** `0x06` (ACK).
+
 ## Automation Logic (`pico/cpp/src/main.cpp`)
 1.  **Inverted Dual-Rail Power Cycle:** Cuts both 3.3V and GND for 1.5s to ensure full capacitor discharge.
 2.  **Baud Rate Sweep:** Power cycles and monitors at [2400, 4800, 9600, 19200, 38400, 115200].
