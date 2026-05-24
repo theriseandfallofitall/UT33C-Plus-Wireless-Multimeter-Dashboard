@@ -25,7 +25,7 @@ Chronological record of technical findings and protocol anomalies.
 *   **Verification:** A successful cycle requires an **inverted dual-rail cut**:
     *   `GP16` (3.3V) -> LOW
     *   `GP17` (GND) -> HIGH
-    *   **Discharge Time:** 1.5 seconds minimum to clear ADC registers.
+    *   **Discharge Time:** **5.0 seconds** recommended (updated from 1.5s) to ensure "True Zero" resets of the MCU and ADC.
 
 ### 5. ADC Saturation State (`7F FF`)
 *   **Observation:** During specific reset windows, the ADC count reports `7F FF` instead of the expected `00 00` or floating values.
@@ -45,8 +45,8 @@ Chronological record of technical findings and protocol anomalies.
 *   **Timing:** The bootloader listener window opens approximately **1.2 seconds** after a Hard Power-ON, signaled by an `AB FD` marker.
 
 ### 10. Soft vs Hard Reset Limitations
-*   **Discovery:** **Soft Reset (Pad 1)** is unreliable for entering State 41 when the HOLD/SELECT button is held. The MCU often "short-circuits" the listener window and proceeds to standard measurement.
-*   **Solution:** **Hard Power-ON Reset (via dual-rail MOSFETs)** provides the most consistent entry point for the diagnostic gateway.
+*   **Discovery:** **Soft Reset (Pad 1)** is unreliable for entering State 41 when the HOLD/SELECT button is held. R90 confirmed that pulsing Pad 1 while power is ON skips the bootloader listener window entirely.
+*   **Solution:** **Hard Power-ON Reset (via dual-rail MOSFETs)** with 5s discharge provides the most consistent entry point for the diagnostic gateway.
 
 ### 11. Timing Criticality of Command Injection
 *   **Finding:** The "Diagnostic Door" is only open for a few tens of milliseconds after the `AB FD` marker. 
@@ -101,8 +101,8 @@ Chronological record of technical findings and protocol anomalies.
 
 ### 20. HOLD/SELECT-Held Early External F9
 *   **Discovery:** Passive HOLD/SELECT-held Continuity capture reproduced an early external `F9` byte before the normal `E0` and `AB FD` sequence.
-*   **Observation:** R83 saw passive external starts of `E0`, `F0`, `FF E0`, and `F9 E0`; the `F9` appeared at ~10ms after power-on and normal `01 19` telemetry followed.
-*   **Impact:** The HOLD/SELECT button appears to affect the very early external boot spill, not the later `FD` listener marker. The next test should target the first 0-100ms window passively and then, only after repeatability is proven, probe immediately after `F9`.
+*   **Observation:** R83 saw passive external starts of `E0`, `F0`, `FF E0`, and `F9 E0`.
+*   **Update (R86-R89):** Repeated attempts with 1.5s and 5.0s discharge delays failed to reproduce the early `F9`. This marker is extremely transient and likely highly dependent on power-rail decay states.
 
 ### 21. HOLD/SELECT + Backlight Combined Button State
 *   **Discovery:** Holding HOLD/SELECT and Backlight together in Continuity did not reproduce the early `F9`; instead, the external/opto boot marker became mixed.
@@ -117,7 +117,11 @@ Chronological record of technical findings and protocol anomalies.
 ### 23. Marker Injection Latency Fix
 *   **Discovery:** The first command firmware logged matched marker bytes over USB before transmitting the response payload.
 *   **Fix:** Before R54, firmware was changed to transmit the response immediately on marker match and log afterward.
-*   **Impact:** R54+ tests use the fastest current Arduino-core path. Further timing improvements would require interrupt-driven or PIO-based UART handling.
+*   **Impact:** R54+ tests use the fastest current Arduino-core path.
+
+### 24. Firmware Feature: RESET_MARKER
+*   **Discovery:** Handshake attempts often failed due to the host-side latency of the USB serial link when combining RESET and MONITOR commands.
+*   **Implementation:** Added `RESET_MARKER` to the Pico firmware. This command pulses a reset pin (Pad 1 or Pad 2) and immediately starts the marker-response listener on the Pico, eliminating USB round-trip latency during the critical boot window.
 
 ---
 
@@ -146,11 +150,15 @@ Chronological record of technical findings and protocol anomalies.
 | **R81-R83** | Continuity + HOLD/SELECT held | Pad 2 (Hard) | Button-Held Repeat + Passive Early Capture | Repeated the same physical-button condition; passive early capture saw `FF`, `F0`, and `F9` before `E0`. | ✅ Discovery |
 | **R84** | Continuity + HOLD/SELECT + Backlight held | Pad 2 (Hard) | Passive Combined-Button Capture | External marker mixed `AB ED`/`AB FD`; early `F9` did not recur. | ✅ Discovery |
 | **R85** | Device OFF + HOLD/SELECT + Backlight held | Pad 2 (Hard) | Passive Off-State Capture | No internal or external UART bytes on five clean power restores. | ✅ Neutral |
+| **R86-R89** | Continuity + HOLD/SELECT held | Pad 2 (Hard) | F9 Repeatability Tests | 1.5s and 5.0s discharge attempts failed to reproduce early `F9` on external UART. | ✅ Neutral |
+| **R90** | Continuity + HOLD/SELECT held | Pad 1 (Soft) | Soft-Reset Boot Window Test | Pulsing Pad 1 while power was ON skipped the early boot markers entirely. | ✅ Discovery |
+| **R91** | Continuity + HOLD/SELECT held | Pad 2 (Hard) | Autonomous Multi-Baud Sweep | Exhaustive sweep of 810 payload permutations (0xA5 + 00-FF, legacy syncs, full frames) injected immediately after `FD` marker at 2400, 9600, and 115200 baud. All attempts ignored. | ✅ Neutral (Conclusive) |
 
 ### 🚀 Future Targets (Remaining to be tried):
-1.  **Multi-Baud Handshake:** Testing Pad 1 Reset while injecting at 9600 or 115200 baud.
-2.  **Long Burst (WDT):** Sending continuous `00` or `FF` for 5+ seconds to trigger a Watchdog Timeout or Buffer Overflow.
-3.  **Power-On Glitch:** Rapid dual-rail power cycling (<100ms) to bypass initialization checksums.
+1.  **EEPROM Corruption via WDT:** Hammering Pad 1 Soft Reset while blasting junk data to intentionally corrupt the RAM/EEPROM bounds check.
+2.  **Logic Analyzer Trace:** Capturing the physical factory calibration process with a logic analyzer (if possible) to find the true multi-byte OEM authorization key.
+
+**Conclusion of Active Fuzzing:** The State 41 gateway exists and the physical wiring is sound, but the diagnostic mode is strictly gated behind an unknown, likely multi-byte authorization key. Standard single-byte fuzzing is insufficient. Active reverse engineering of the bootloader handshake is concluded.
 
 ---
 

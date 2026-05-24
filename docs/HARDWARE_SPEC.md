@@ -42,9 +42,9 @@ Comparative research suggests the MCU expects a **Command Prefix** immediately a
 ## Automation Logic (`pico/cpp/src/main.cpp`)
 The Pico now runs a persistent serial-controlled firmware. It is flashed once, then the PC drives each experiment over USB serial.
 
-1.  **Inverted Dual-Rail Power Cycle:** Cuts both 3.3V and GND for 1.5s to ensure full capacitor discharge.
+1.  **Inverted Dual-Rail Power Cycle:** Cuts both 3.3V and GND for 5.0s (updated from 1.5s) to ensure full capacitor discharge and "True Zero" resets.
 2.  **Reusable Rig Primitives:** Exposes power, reset, UART baud, raw transmit, NULL burst, monitor, and marker-response commands.
-3.  **Time-Critical Marker Response:** `CYCLE_MARKER` performs the hard power cycle and immediately watches for boot markers (`41`, `FD`, `ED`, `F9`, or other selected bytes) before injecting a response, avoiding host USB latency during the critical window.
+3.  **Time-Critical Marker Response:** `CYCLE_MARKER` performs the hard power cycle and immediately watches for boot markers (`41`, `FD`, `ED`, `F9`, or other selected bytes) before injecting a response, avoiding host USB latency during the critical window. `RESET_MARKER` performs this same zero-latency watch immediately after pulsing Pad 1 or Pad 2.
 
 ## Monitoring & Logging
 Use `python pico_rig_runner.py ...` to control and log the rig without reflashing firmware.

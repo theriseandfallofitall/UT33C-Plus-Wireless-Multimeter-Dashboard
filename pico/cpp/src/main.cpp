@@ -506,7 +506,7 @@ void cmdMarkerCommon(char** tokens, size_t argc, bool cyclePower) {
     if (cyclePower) {
         Serial.println("OK CYCLE_MARKER POWER_OFF");
         setPower(false);
-        delay(1500);
+        delay(5000);
         drainMeterUarts();
         setPower(true);
     }
@@ -528,6 +528,67 @@ void cmdMarker(char** tokens, size_t argc) {
 
 void cmdCycleMarker(char** tokens, size_t argc) {
     cmdMarkerCommon(tokens, argc, true);
+}
+
+void cmdResetMarker(char** tokens, size_t argc) {
+    if (argc < 8) {
+        Serial.println("ERR RESET_MARKER requires pad, duration, port, timeout, post_ms, markers, RESP, response");
+        return;
+    }
+
+    long duration = 0;
+    if (!parseLong(tokens[2], duration) || duration < 1) {
+        Serial.println("ERR invalid reset duration");
+        return;
+    }
+
+    int pin = 0;
+    if (strcasecmp(tokens[1], "PAD1") == 0) pin = PIN_PAD1;
+    else if (strcasecmp(tokens[1], "PAD2") == 0) pin = PIN_PAD2;
+    else {
+        Serial.println("ERR unknown reset pad");
+        return;
+    }
+
+    long timeoutMs = 0;
+    long postMs = 0;
+    if (!parseLong(tokens[4], timeoutMs) || !parseLong(tokens[5], postMs)) {
+        Serial.println("ERR invalid timing");
+        return;
+    }
+
+    ByteList markers;
+    markers.count = 0;
+    size_t respIndex = 0;
+    for (size_t i = 6; i < argc; i++) {
+        if (strcasecmp(tokens[i], "RESP") == 0) {
+            respIndex = i;
+            break;
+        }
+        if (markers.count >= MAX_BYTES) break;
+        parseHexByte(tokens[i], markers.bytes[markers.count++]);
+    }
+
+    if (respIndex == 0 || markers.count == 0 || respIndex + 1 >= argc) {
+        Serial.println("ERR RESET_MARKER missing markers or RESP");
+        return;
+    }
+
+    ByteList response;
+    if (!collectHexBytes(tokens, respIndex + 1, argc, response)) {
+        return;
+    }
+
+    HardwareSerial& uart = serialForPort(tokens[3]);
+    const char* portName = normalizedPortName(tokens[3]);
+    drainMeterUarts();
+
+    Serial.println("OK RESET_MARKER PULSING");
+    pulseResetPin(pin, static_cast<uint32_t>(duration));
+    drainMeterUarts();
+    
+    Serial.println("OK MARKER ARMED");
+    runMarkerResponse(uart, portName, static_cast<uint32_t>(timeoutMs), static_cast<uint32_t>(postMs), markers, response);
 }
 
 void processCommand(char* line) {
@@ -562,6 +623,8 @@ void processCommand(char* line) {
         cmdMarker(tokens, argc);
     } else if (strcasecmp(tokens[0], "CYCLE_MARKER") == 0) {
         cmdCycleMarker(tokens, argc);
+    } else if (strcasecmp(tokens[0], "RESET_MARKER") == 0) {
+        cmdResetMarker(tokens, argc);
     } else {
         Serial.print("ERR unknown command ");
         Serial.println(tokens[0]);

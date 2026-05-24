@@ -37,7 +37,7 @@ Logs are written to `logs/rig_runs/`.
 
 ## 4. Discovery Methodology
 - **Standard Runs:** The Python runner sequences power, reset, UART transmit, monitor, and marker-response commands.
-- **Time-Sensitive Runs:** The Pico firmware provides `CYCLE_MARKER`, which power-cycles the meter and arms marker detection immediately after power-on so the PC cannot miss the boot window.
+- **Time-Sensitive Runs:** The Pico firmware provides `CYCLE_MARKER` and `RESET_MARKER`. These commands perform a hardware reset (via power cycle or reset pads, respectively) and arm marker detection immediately, ensuring the PC cannot miss the sub-millisecond boot window.
 - **Physical Handshakes:** Some experiments (e.g., R34) require the user to hold the **HOLD/SELECT** button on the meter during the reset window. Follow the runner prompt.
 
 ## 5. Analyzing Results
@@ -59,4 +59,5 @@ NULLS INT|EXT <count> [gap_ms]
 MONITOR INT|EXT|BOTH <duration_ms>
 MARKER INT|EXT <timeout_ms> <post_ms> <markers...> RESP <response...>
 CYCLE_MARKER INT|EXT <timeout_ms> <post_ms> <markers...> RESP <response...>
+RESET_MARKER PAD1|PAD2 <duration_ms> INT|EXT <timeout_ms> <post_ms> <markers...> RESP <response...>
 ```

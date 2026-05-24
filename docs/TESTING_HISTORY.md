@@ -89,25 +89,31 @@ Detailed chronological record of every automated discovery run executed on the Y
 | **R83** | Continuity + HOLD/SELECT held | Dual-rail power cycle | Passive External Early-Byte Capture | Passive no-injection captures of the same button-held condition showed early external `FF`, `F0`, and `F9` before the normal `E0` -> `AB FD` -> `01 19` sequence. `F9` recurred at ~10ms after power-on. | ✅ Discovery |
 | **R84** | Continuity + HOLD/SELECT + Backlight held | Dual-rail power cycle | Passive Combined-Button Capture | Ten passive full power-cycle captures showed internal `AB FD` every time, but external alternated between `AB ED` and `AB FD`; no early `F9` recurred. Normal telemetry stayed `01 19`. | ✅ Discovery |
 | **R85** | Device OFF + HOLD/SELECT + Backlight held | Dual-rail power cycle | Passive Off-State Capture | Five clean power restores produced no internal or external UART bytes. The OFF dial/device state appears to gate MCU telemetry completely even with both buttons held. | ✅ Neutral |
+| **R86** | Continuity + HOLD/SELECT held | Dual-rail power cycle | F9 Repeatability Attempt (1.5s) | Five cycles at 2400 baud did not reproduce the early external `F9`. Observed early `E0` followed by `AB FD` and normal `01 19`. | ✅ Neutral |
+| **R87** | Continuity + HOLD/SELECT held | Dual-rail power cycle | F9 Repeatability Attempt (9k6) | One cycle at 9600 baud showed junk data but no clear `F9` signature. | ✅ Neutral |
+| **R88** | Continuity + HOLD/SELECT held | Dual-rail power cycle | F9 Repeatability Attempt (5s) | Increased discharge delay to 5s to ensure clean boot. Still did not reproduce early `F9`. | ✅ Neutral |
+| **R89** | Continuity + HOLD/SELECT + Backlight held | Dual-rail power cycle | Combined F9 Repeatability (5s) | Holding both buttons with 5s discharge did not reproduce `F9`. | ✅ Neutral |
+| **R90** | Continuity + HOLD/SELECT held | Pad 1 (Soft Reset) | Soft-Reset Boot Window Test | Pulsing Pad 1 while power was ON skipped the early boot markers entirely; normal telemetry resumed immediately. | ✅ Discovery |
+| **R91** | Continuity + HOLD/SELECT held | Dual-rail power cycle | Autonomous Multi-Baud Sweep | Exhaustive sweep of 810 payload permutations (0xA5 + 00-FF, legacy syncs, full frames) injected immediately after `FD` marker at 2400, 9600, and 115200 baud. All attempts were ignored or safely dropped. | ✅ Neutral (Conclusive) |
 
 ---
 
 ## 🔍 Analytical Conclusions (May 24, 2026)
 
 ### 1. The Gateway (State 41 and F9)
-We have identified an explicit **"Awaiting Communication"** state (Protocol ID `41`) and additional markers like `F9` and `81` which occur during the boot sequence or when the physical HOLD/SELECT button is held. The states are **extremely transient**.
+We have identified an explicit **"Awaiting Communication"** state (Protocol ID `41`) and additional markers like `F9` and `81` which occur during the boot sequence or when the physical HOLD/SELECT button is held. The `F9` marker seen in R83 appears to be extremely transient and potentially dependent on very specific capacitor discharge states; R86-R89 were unable to repeat it reliably.
 
 ### 2. Physical Verification & Mandatory Buttons
 Experiment R27 confirmed that the MCU ignores all UART injection unless the physical HOLD/SELECT button is held during the reset. This confirms a hardware strapping requirement for entering diagnostic or calibration modes.
 
 ### 3. Reset Strategy Shift (Soft vs Hard)
-Experiment R32 revealed that **Soft Reset (Pad 1)** is unstable for diagnostic entry when a physical button is held. The MCU often skips the listener window and resumes normal measurement. We are shifting to **Hard-Power Reset (Dual-Rail MOSFETs)** to ensure a clean boot state for all future handshake attempts.
+Experiment R32 and R90 revealed that **Soft Reset (Pad 1)** is unstable for diagnostic entry. While it resets the measurement loop, it often skips the bootloader listener window entirely. **Hard-Power Reset (Dual-Rail MOSFETs)** with a 5-second discharge delay is the only reliable way to ensure the MCU enters its true boot state.
 
 ### 4. Bootloader Timing Delay
-Through R33, we discovered that the MCU's bootloader takes approximately **1.2 seconds** after a Hard Power-ON to initialize and emit the `AB FD` marker when the HOLD/SELECT button is held. Previous experiments missed this because the monitoring windows were too short (<500ms).
+Through R33, we discovered that the MCU's bootloader takes approximately **1.2 seconds** after a Hard Power-ON to initialize and emit the `AB FD` marker when the HOLD/SELECT button is held.
 
 ### 5. Serial-Controlled Rig Firmware
-R34/R35 validated the new flash-once workflow. The Pico now runs persistent serial command firmware and the PC can execute repeatable tests through `pico_rig_runner.py` without reflashing between variants.
+The Pico rig firmware has been updated to include `RESET_MARKER`, allowing the rig to pulse Pad 1 or Pad 2 and immediately watch for markers without a full power cycle. The `CYCLE_MARKER` command now defaults to a **5-second** power-off delay to ensure "True Zero" resets.
 
 ### 6. Mode-Dependent Boot Markers
 R43/R45 first showed the external/opto UART emitted `AB ED` in Continuity while the internal UART emitted `AB FD`. R48/R49 corrected this model: in 200mV mode, the external/opto UART emits `AB FD` too.
@@ -126,11 +132,11 @@ R43/R45 first showed the external/opto UART emitted `AB ED` in Continuity while 
 Future external-port tests should trigger on both `ED` and `FD` unless the target mode has already been characterized.
 
 ### 7. Marker Response Timing Correction
-Before R54, the firmware logged the marker byte over USB before sending the response bytes. That was correct for traceability but added avoidable latency. The firmware now writes the response immediately after reading a matched marker, then logs the event. This is the fastest current software path without moving to a lower-level interrupt/PIO UART implementation.
+Before R54, the firmware logged the marker byte over USB before sending the response bytes. The firmware now writes the response immediately after reading a matched marker, then logs the event.
 
 ### 8. Power Sequencing & Rig Hardware
 A "Clean" reset requires an **Inverted Dual-Rail cut**:
 *   **3.3V (GP16):** Active HIGH (1=ON)
 *   **GND (GP17):** Active LOW (0=ON)
-*   **Wait Time:** 1.5s is required to clear ADC saturation registers (`7F FF`).
-*   The rig has been updated to use the **RP2350 (Pico 2)** to leverage higher precision timers for the stabilization window.
+*   **Wait Time:** **5.0s** is now recommended (updated from 1.5s) to ensure full capacitor discharge.
+*   The rig uses the **RP2040 (Pico)** with serial-controlled firmware.
