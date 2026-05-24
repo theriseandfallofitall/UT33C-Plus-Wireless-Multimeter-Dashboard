@@ -7,18 +7,19 @@ Transition the meter from its physical dial state (e.g., Continuity) to a softwa
 
 ---
 
-## 🛠 Handshake Protocol
-Research indicates that the SD7501 follows a strict "Trigger-Acknowledge-Command" sequence:
+## 🛠 Handshake Protocol (Updated for R34+)
+Research indicates that the SD7501 follows a strict "Trigger-Acknowledge-Command" sequence, but it requires physical strapping and precise timing:
 
-1.  **Trigger:** Pulse Pad 1 (Soft Reset) and send 8x `0x00` (NULL) bytes @ 2400 baud.
-2.  **Acknowledge:** Wait for the meter to respond with Protocol ID **`41`** (ASCII 'A').
-3.  **Unlock:** Immediately send the **Binary Key `0xA5`**. This is the standard SDIC command prefix.
-4.  **Confirm:** Wait for a response (Likely `0x06` ACK or a unique `AB CD 42...` frame).
+1.  **Strapping:** The user must manually HOLD the **SELECT** button.
+2.  **Trigger:** Perform a Hard Power-OFF (Inverted Dual-Rail), wait 1.5s, then Power-ON.
+3.  **Acknowledge:** Wait approximately **1.2 seconds** for the meter's bootloader to respond with Protocol Marker **`AB FD`** (or `41`).
+4.  **Unlock:** Immediately send the **Binary Key `0xA5`**. This is the standard SDIC command prefix.
+5.  **Confirm:** Wait for a response (Likely `0x06` ACK or a unique `AB CD 42...` frame).
 
 ---
 
 ## 🚀 Mode Change Command Set
-Once the gateway is "Unlocked" (Step 3), we will test the following command structures:
+Once the gateway is "Unlocked" (Step 4), we will test the following command structures:
 
 ### Phase 1: Virtual Button Press (Safest)
 Most SDIC chips allow simulating the **SELECT** or **RANGE** buttons via UART.
@@ -36,16 +37,16 @@ If the above fail, we may need to write directly to the temporary mode register 
 
 ---
 
-## 📊 Experiment Roadmap (R21+)
+## 📊 Experiment Roadmap (R34+)
 
 | ID | Title | Logic | Target Outcome |
 | :--- | :--- | :--- | :--- |
-| **R21** | The A5 Unlock | NULL -> ID 41 -> Send `0xA5` | Receive ACK (`0x06`) |
-| **R22** | Button Sim | Unlock -> Send `0xA5 0x01 0x01` | Meter beeps/changes LCD icons |
-| **R23** | Mode Override | Unlock -> Send `0xA5 0x02 0x0D` | Telemetry Byte 3 changes to `0D` |
+| **R34** | Precise Marker Response | Hard Reboot (w/ SELECT) -> Wait 1.2s for `AB FD` -> Send `0xA5 0x01 0x01` | Meter beeps/changes LCD icons |
+| **R35** | Command Fuzzing | Target other payload variations for `0xA5` command set | Elicit `0x06` ACK |
+| **R36** | Mode Override | Target Mode Byte override command | Telemetry Byte 3 changes |
 
 ---
 
 ## ⚠️ Risk Mitigation
-- **Timeout Window:** State 41 times out in <50ms. R21 must use the Pico's hardware interrupts to respond to the `41` byte instantly.
+- **Timeout Window:** The listener window after the `AB FD` marker is likely <50ms. R34 uses the Pico's hardware interrupts to respond instantly.
 - **Checksums:** All commands likely require a trailing checksum: `(Sum of bytes after 0xA5) & 0xFF`.

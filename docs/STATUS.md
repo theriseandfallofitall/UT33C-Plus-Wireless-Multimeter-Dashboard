@@ -18,10 +18,9 @@ We have shifted from general fuzzing to a targeted protocol attack. The new goal
 - **Strategy Document:** [docs/MODE_CHANGE_PLAN.md](docs/MODE_CHANGE_PLAN.md)
 
 ## 📝 TODO: Next Research Phase
-*   [x] **R20: Gateway Stabilization:** Confirmed gateway is timing-sensitive and ignores ASCII strings.
-*   [x] **R21-R29: Handshake Attempts:** Tested various delays, NULL bursts, and `0xA5` injections with and without physical buttons. Confirmed physical button is required but the exact handshake is still elusive.
-*   [x] **R30-R31: Power Glitch & Sync:** Identified early boot markers (`E0`, `AB FD`) during hard reboots.
-*   [ ] **R32: EEPROM Read Discovery:** Wait for `AB FD` marker and inject formatted READ commands (`0xA5 0x00 [Addr] [CS]`).
+*   [x] **R32: EEPROM Read Discovery:** Attempted with Soft Reset; failed to trigger markers reliably.
+*   [x] **R33: Hard-Power Button Handshake:** Discovered `AB FD` marker consistently appears ~1.2s after power-on when SELECT is held.
+*   [ ] **R34: Precise Marker Response:** Extend detection window to 2s, wait for `AB FD` or `41`, and inject `0xA5 0x01 0x01`.
 
 ## 📍 Where We Left Off
 The YD-RP2040 rig is running the latest C++ fuzzer. All discovery runs (R01-R11) are logged in `docs/TESTING_HISTORY.md` and `logs/fuzzer_runs/`. The "Door" is open (State 41), we just need the "Key."

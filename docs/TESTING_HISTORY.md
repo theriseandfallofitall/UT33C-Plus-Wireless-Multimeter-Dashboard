@@ -35,7 +35,9 @@ Detailed chronological record of every automated discovery run executed on the Y
 | **R29** | Continuity | Pad 1 (Soft) | Gateway Probe | Very short 10ms reset pulse, sliding delay before NULLs. Gateway not triggered. | ✅ Neutral |
 | **R30** | Continuity | Pad 2 (Hard) | Hard-Power Glitch | Power cycled the MCU. Detected `E0` and `AB FD` markers confirming early boot window access. | ✅ Success |
 | **R31** | Continuity | Pad 2 (Hard) | Pre-Power Sync | Blasted `0x55 0xAA` before power-on. Still received `FE` and `AB FD`. | ✅ Success |
-| **R32** | Continuity | Pad 1 (Soft) | EEPROM Read | Sent formatted READ command (`0xA5 0x00 [ADDR] [CS]`) after boot marker. | ⏳ Pending |
+| **R32** | Continuity | Pad 1 (Soft) | EEPROM Read | Sent `0xA5 0x00` after boot marker. Soft Reset failed to trigger markers reliably in loop. | ✅ Neutral |
+| **R33** | Continuity | Pad 2 (Hard) | Hard-Power Handshake | Sent NULLs after hard reboot while holding SELECT. Discovered `AB FD` marker consistently appears ~1.2s after power-on. | ✅ Success |
+| **R34** | Continuity | Pad 2 (Hard) | Precise Marker Response | Extended detection window to 2s, waiting for `AB FD` or `41` to inject `0xA5 0x01 0x01`. | ⏳ Pending |
 
 ---
 
@@ -47,8 +49,13 @@ We have identified an explicit **"Awaiting Communication"** state (Protocol ID `
 ### 2. Physical Verification & Mandatory Buttons
 Experiment R27 confirmed that the MCU ignores all UART injection unless a physical button (like SELECT or HOLD) is held during the reset. This confirms a hardware strapping requirement for entering diagnostic or calibration modes.
 
-### 3. Early Boot Markers
-Through Hard-Power Glitch experiments (R30, R31), we identified that the MCU emits markers like `E0` and `AB FD` immediately after power-on. We are currently trying to inject sync bytes or commands right at this boot phase.
+### 3. Reset Strategy Shift (Soft vs Hard)
+Experiment R32 revealed that **Soft Reset (Pad 1)** is unstable for diagnostic entry when a physical button is held. The MCU often skips the listener window and resumes normal measurement. We are shifting to **Hard-Power Reset (Dual-Rail MOSFETs)** to ensure a clean boot state for all future handshake attempts.
+
+### 4. Bootloader Timing Delay
+Through R33, we discovered that the MCU's bootloader takes approximately **1.2 seconds** after a Hard Power-ON to initialize and emit the `AB FD` marker when the SELECT button is held. Previous experiments missed this because the monitoring windows were too short (<500ms).
+
+
 
 ### 4. Power Sequencing & Rig Hardware
 A "Clean" reset requires an **Inverted Dual-Rail cut**:
