@@ -1,23 +1,26 @@
 # Project Status: UT33C+ UART Decode
-**Last Updated: May 22, 2026**
+**Last Updated: May 24, 2026**
 
 ## 🎯 Current Status
-The project has successfully reverse-engineered the raw data stream from the UNI-T UT33C+ internal debug pads. We have shifted from the legacy opto-port to a high-speed, auto-transmitting internal UART interface.
+The project has successfully transitioned to an **automated hardware-in-the-loop (HIL) fuzzer rig**. We are now performing long-duration discovery to unlock bidirectional (RX) control.
 
 ## 🏆 Major Discoveries
-1.  **Raw Telemetry Port:** Identified internal pads that auto-transmit raw ADC counts at **2400 baud**.
-2.  **ADC Protocol:** Decoded the 10-byte binary frame structure, including mode detection and value scaling.
-3.  **Reset Logic:** 
-    *   **Pad 2** is a Hard Reset (CPU Halt).
-    *   **Pad 1** is a Soft Reset (Initializes Logic/Buzzer).
-4.  **Hardware Rig:** Developed a Pi Pico 2 (RP2350) automated rig that can power-cycle the meter, trigger resets, and monitor both UART ports simultaneously.
+1.  **Raw Telemetry Port:** Stable 2400 baud stream confirmed on internal pads.
+2.  **ADC Protocol:** Decoded 10-byte binary frames. 
+    *   **Checksum:** `sum(Bytes 2..7) & 0xFF` (Verified).
+    *   **Value:** Signed 32-bit big-endian ADC counts.
+3.  **Power Sequencing:** Discovered that a clean power cycle requires an **inverted dual-rail cut**:
+    *   **Positive Rail:** Active HIGH (3.3V).
+    *   **GND Rail:** Active LOW (GND).
+4.  **Hardware Rig:** Successfully deployed on a **YD-RP2040** board. The rig now handles power-on resets, baud rate sweeps, and rapid command injection.
+5.  **Stream Logging:** Implemented `fuzzer_monitor.py` for structured, timestamped session logging of fuzzer events and telemetry.
 
 ## 🚧 Challenges & Blockers
-*   **Bidirectional Control:** The multimeter's RX line currently appears to ignore all incoming commands. The port seems to be firmware-locked to "Transmit Only" for measurement data.
-*   **Bootloader Access:** Brute-force command injection during the reset window has not yet revealed a hidden command shell or programming mode.
+*   **RX Lock:** The meter's RX line is currently non-responsive. We are fuzzing common UNI-T sync sequences (`AB 01`, `AB 00`) during the post-reset boot window.
+*   **Opto-Port Noise:** The external opto-port remains much noisier than the internal pads, but is being monitored simultaneously.
 
 ## 📍 Where We Left Off
-The Pi Pico 2 rig is built and verified with C++. We have a serial heartbeat working on the RP2350. The next logical step is to run long-duration fuzzing cycles to see if any specific timing or character combination can unlock the RX line.
+The YD-RP2040 is running the Phase 1 (Baud) and Phase 2 (Injection) loops. `fuzzer_monitor.py` is active and logging all interactions to `logs/fuzzer_runs/` for future AI analysis.
 
 ---
 ## ⚠️ Update (May 23, 2026)

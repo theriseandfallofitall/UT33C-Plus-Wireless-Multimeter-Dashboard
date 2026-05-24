@@ -14,9 +14,9 @@ This port auto-transmits raw data as soon as the meter is powered.
 | 0-1 | Header | Fixed sync bytes: `AB CD`. |
 | 2 | Protocol ID | Always `01` in confirmed captures. |
 | 3 | Mode Byte | Identifies the range/unit on the dial. |
-| 4-7 | ADC Count | 32-bit Big Endian integer (Internal counts). |
+| 4-7 | ADC Count | 32-bit Big Endian SIGNED integer (Internal counts). |
 | 8 | Status | Flags (00=Normal, 04/03=Often seen in OL). |
-| 9 | Checksum | `sum(Bytes 2..8) & 0xFF`. |
+| 9 | Checksum | `sum(Bytes 2..7) & 0xFF` (Excludes Status byte). |
 
 ## Confirmed Range Mappings
 | Mode Byte | Range Name | Scaling / Formula |

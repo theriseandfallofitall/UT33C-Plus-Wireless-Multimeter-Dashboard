@@ -13,11 +13,12 @@ python ut33c_plus_final_logger.py
 ```
 *Supports: Voltage, Current, Resistance, Continuity, Celsius, Fahrenheit.*
 
-### 2. Automated Testing (Pi Pico 2)
-If you are building the automated test rig using a Raspberry Pi Pico 2:
-- **Firmware:** Located in `pico/cpp/` (PlatformIO) or `pico/micropython/`.
-- **Wiring:** See [docs/PICO_WIRING.md](docs/PICO_WIRING.md).
-- **Guide:** See [docs/PICO_GUIDE.md](docs/PICO_GUIDE.md).
+### 2. Automated Testing (YD-RP2040)
+If you are building the automated test rig:
+- **Firmware:** Located in `pico/cpp/` (PlatformIO).
+- **Deployment:** Use `.\deploy_pico.ps1` to build and upload.
+- **Monitoring:** Use `python fuzzer_monitor.py` to log all fuzzer activity.
+- **Wiring:** See [docs/HARDWARE_SPEC.md](docs/HARDWARE_SPEC.md).
 
 ---
 
@@ -25,7 +26,9 @@ If you are building the automated test rig using a Raspberry Pi Pico 2:
 
 ### 🛠 Tools
 *   `ut33c_plus_final_logger.py`: The primary high-level decoder and CSV logger.
+*   `fuzzer_monitor.py`: Long-duration stream logger for the automated rig.
 *   `ut33c_raw_capture.py`: Utility for capturing raw hex frames for new modes.
+*   `deploy_pico.ps1`: Automated build and upload script for the RP2040.
 
 ### 📂 Subdirectories
 *   `docs/`: Full technical documentation, protocol maps, and wiring guides.

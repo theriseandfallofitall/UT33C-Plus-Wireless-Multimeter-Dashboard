@@ -1,39 +1,37 @@
-# Raspberry Pi Pico 2: Automated Testing Platform
+# Automated Testing Platform (YD-RP2040)
 This repository contains a full C++ PlatformIO project to automate the testing of the UT33C+ multimeter.
 
 ## Hardware Components
-*   **Controller:** Raspberry Pi Pico 2 (RP2350).
-*   **Power Control:** N-Channel MOSFET wired to GP16 for low-side power switching.
+*   **Controller:** YD-RP2040 (RP2040-based, VCC-GND).
+*   **Power Control:** Dual MOSFET setup for full rail isolation.
+    *   **GP16 (Positive Rail):** Active HIGH (1=3.3V ON).
+    *   **GP17 (GND Rail):** Active LOW (0=GND ON).
 *   **UART Interfacing:** 
     *   **Serial1 (GP0/GP1):** Connected to Internal High-Speed Pads.
     *   **Serial2 (GP4/GP5):** Connected to External Opto-Port Pads.
-*   **Reset Control:** GPIOs for Pad 1 (Soft) and Pad 2 (Hard).
+*   **Reset Control:** 
+    *   **GP14 (Pad 1):** Soft Reset (Active LOW).
+    *   **GP15 (Pad 2):** Hard Reset (Active LOW).
 
 ## Software Setup (PlatformIO)
-To maintain the high-speed timing required for reset glitching, the project uses the **Earle Philhower RP2040/RP2350 Arduino Core**.
+The project uses the **Earle Philhower RP2040/RP2350 Arduino Core** for high-speed GPIO and multi-core timing.
 
-### configuration (`platformio.ini`)
+### Configuration (`platformio.ini`)
 ```ini
-[env:pico2]
+[env:pico]
 platform = https://github.com/maxgerhardt/platform-raspberrypi.git
-board = generic_rp2350
+board = pico
 framework = arduino
 board_build.core = earlephilhower
 monitor_speed = 115200
 ```
 
-### Build & Upload
-1.  Connect Pico 2 in BOOTSEL mode (Hold button while plugging in).
-2.  Run `pio run --target upload`.
-3.  If upload fails to auto-detect, manually copy `.pio/build/pico2/firmware.uf2` to the RPI-RP2 drive.
+## Automation Logic (`pico/cpp/src/main.cpp`)
+1.  **Inverted Dual-Rail Power Cycle:** Cuts both 3.3V and GND for 1.5s to ensure full capacitor discharge.
+2.  **Baud Rate Sweep:** Power cycles and monitors at [2400, 4800, 9600, 19200, 38400, 115200].
+3.  **Advanced Fuzzing:** Performs precise timing attacks, NULL blasts, and command injections to unlock hidden MCU states (e.g., State 41).
 
-## Automation Logic (`src/main.cpp`)
-The current firmware performs:
-1.  **Heartbeat:** Blinks the onboard LED and prints uptime to the serial monitor.
-
-**NOTE:** The description previously listed advanced fuzzing capabilities. This was inaccurate. The current committed firmware is a simple proof-of-life test. The fuzzing logic described is the **goal**, not the current implementation.
-
-## Serial Output
-Logs are sent to your PC at **115200 baud** over USB.
+## Monitoring & Logging
+Use `python fuzzer_monitor.py` to capture the fuzzer's serial output and save it to `logs/fuzzer_runs/`.
 - `INT: ...` indicates data from the high-speed internal pads.
 - `EXT: ...` indicates data from the external opto-pads.

@@ -27,7 +27,7 @@ MODES = {
     0x0B: {"name": "10A DC", "unit": "A", "scale": 0.01, "offset": 0},
     0x13: {"name": "Fahrenheit", "unit": "°F", "scale": 1.0, "offset": 0, "transform": "celsius_to_fahrenheit"},
     0x16: {"name": "Celsius", "unit": "°C", "scale": 0.1, "offset": 0},
-    0x17: {"name": "200mV DC", "unit": "mV", "scale": 0.1, "offset": 0}, # Offset removed, handled in logic
+    0x17: {"name": "200mV DC", "unit": "mV", "scale": 0.1, "offset": 0}, 
     0x19: {"name": "Continuity", "unit": "Ω", "scale": 1.0, "offset": 0, "transform": "continuity_diode"},
     0x1A: {"name": "200k Ohm", "unit": "kΩ", "scale": 0.1, "offset": 0},
     0x1B: {"name": "20mA DC", "unit": "mA", "scale": 0.01, "offset": 0},
@@ -51,21 +51,22 @@ def continuity_diode(raw_val):
 
 def checksum_ok(frame):
     if len(frame) != 10: return False
-    # CS = sum(Bytes 2 to 8) & 0xFF
-    return sum(frame[2:9]) & 0xFF == frame[9]
+    # Verified: Checksum is sum of Bytes 2 through 7 (excludes status byte 8)
+    return sum(frame[2:8]) & 0xFF == frame[9]
 
 def decode_reading(frame):
     mode_byte = frame[3]
-    # We'll treat it as a 32-bit big-endian unsigned for safety.
-    raw_val = int.from_bytes(frame[4:8], byteorder='big')
+    # Reading is bytes 4,5,6,7. 
+    # Use signed=True to handle negative counts and 200mV range correctly.
+    raw_val = int.from_bytes(frame[4:8], byteorder='big', signed=True)
     
     if mode_byte in MODES:
         m = MODES[mode_byte]
         
-        # Handle mode-specific OL conditions before any scaling
-        # In 200mV mode, 2080 is the OL threshold
-        if mode_byte == 0x17 and raw_val >= 2080:
+        # Handle special OL state (7FFF is a common threshold for this ADC)
+        if (raw_val >= 32767) or (mode_byte == 0x17 and raw_val >= 2080):
             return m['name'], "OL", m['unit'], raw_val
+        
         # For most resistance modes, a high value is OL
         if "Ohm" in m['name'] and raw_val >= 0x7F00:
              return m['name'], "OL", m['unit'], raw_val
@@ -85,7 +86,6 @@ def decode_reading(frame):
             return m['name'], new_val, new_unit, raw_val
 
         # Format the final value
-        # Determine decimal places based on scale
         if m['scale'] == 0.1:
             return m['name'], f"{val:.1f}", m['unit'], raw_val
         elif m['scale'] == 0.01:
@@ -136,7 +136,6 @@ def main():
                         data = ser.read(ser.in_waiting)
                         buffer.extend(data)
                         
-                        # Find frames starting with AB CD
                         while len(buffer) >= 10:
                             idx = buffer.find(b'\xAB\xCD')
                             if idx == -1:
@@ -146,23 +145,17 @@ def main():
                                 del buffer[:idx]
                                 continue
                             
-                            # We have a candidate frame at index 0
                             frame = bytes(buffer[:10])
                             if checksum_ok(frame):
                                 mode, val, unit, raw = decode_reading(frame)
                                 timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
                                 raw_hex = frame.hex(' ').upper()
                                 
-                                # Print to console
                                 print(f"{timestamp:12} | {mode:12} | {val:>10} | {unit:6} | {raw_hex}")
-                                
-                                # Log to CSV
                                 writer.writerow([datetime.now().isoformat(), mode, val, unit, raw_hex])
                                 f.flush()
-                                
                                 del buffer[:10]
                             else:
-                                # Bad checksum, skip header and keep looking
                                 del buffer[:2]
                     time.sleep(0.01)
                     
