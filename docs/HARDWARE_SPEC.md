@@ -40,11 +40,19 @@ Comparative research suggests the MCU expects a **Command Prefix** immediately a
 *   **Candidate 3:** `0x06` (ACK).
 
 ## Automation Logic (`pico/cpp/src/main.cpp`)
+The Pico now runs a persistent serial-controlled firmware. It is flashed once, then the PC drives each experiment over USB serial.
+
 1.  **Inverted Dual-Rail Power Cycle:** Cuts both 3.3V and GND for 1.5s to ensure full capacitor discharge.
-2.  **Baud Rate Sweep:** Power cycles and monitors at [2400, 4800, 9600, 19200, 38400, 115200].
-3.  **Advanced Fuzzing:** Performs precise timing attacks, NULL blasts, and command injections to unlock hidden MCU states (e.g., State 41).
+2.  **Reusable Rig Primitives:** Exposes power, reset, UART baud, raw transmit, NULL burst, monitor, and marker-response commands.
+3.  **Time-Critical Marker Response:** `CYCLE_MARKER` performs the hard power cycle and immediately watches for boot markers (`41`, `FD`, `ED`, `F9`, or other selected bytes) before injecting a response, avoiding host USB latency during the critical window.
 
 ## Monitoring & Logging
-Use `python fuzzer_monitor.py` to capture the fuzzer's serial output and save it to `logs/fuzzer_runs/`.
-- `INT: ...` indicates data from the high-speed internal pads.
-- `EXT: ...` indicates data from the external opto-pads.
+Use `python pico_rig_runner.py ...` to control and log the rig without reflashing firmware.
+- `python pico_rig_runner.py status` checks firmware health.
+- `python pico_rig_runner.py monitor --meter-port BOTH --duration-ms 5000` captures raw UART output.
+- `python pico_rig_runner.py r34 --attempts 10` reruns the original marker-response experiment.
+- For current research, use `python pico_rig_runner.py cmd ...` or focused Python snippets with `PicoRig` to run early-window captures such as the R83 HOLD/SELECT-held external `F9` repeatability test.
+
+Logs are saved to `logs/rig_runs/`.
+- `DATA INT ...` indicates data from the high-speed internal pads.
+- `DATA EXT ...` indicates data from the external opto-pads.

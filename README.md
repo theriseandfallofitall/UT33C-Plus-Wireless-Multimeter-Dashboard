@@ -16,8 +16,8 @@ python ut33c_plus_final_logger.py
 ### 2. Automated Testing (YD-RP2040)
 If you are building the automated test rig:
 - **Firmware:** Located in `pico/cpp/` (PlatformIO).
-- **Deployment:** Use `.\deploy_pico.ps1` to build and upload.
-- **Monitoring:** Use `python fuzzer_monitor.py` to log all fuzzer activity.
+- **Deployment:** Use `.\deploy_pico.ps1` once to build and upload the serial-controlled rig firmware.
+- **Testing:** Use `python pico_rig_runner.py status`, `python pico_rig_runner.py monitor`, or `python pico_rig_runner.py r34` to run experiments without reflashing.
 - **Wiring:** See [docs/HARDWARE_SPEC.md](docs/HARDWARE_SPEC.md).
 
 ---
@@ -28,7 +28,7 @@ If you are building the automated test rig:
 The meter has been identified as likely using the **SDIC SD7501** SoC. This is based on its unique 10-byte UART protocol and 2400 baud telemetry.
 
 ### 🔓 Diagnostic Gateway (State 41)
-We have discovered a hidden diagnostic state (**Protocol ID 41**) triggered by a NULL burst during boot. We are currently working on a [Mode Change Plan](docs/MODE_CHANGE_PLAN.md) to enable remote software control of the multimeter.
+We discovered a hidden diagnostic state (**Protocol ID 41**) in earlier reset/null-burst work. The current serial-controlled Pico workflow has mapped the hard-power boot markers across modes; the strongest remaining route is the very early external `F9` window seen with only the HOLD/SELECT button held in Continuity. The combined HOLD/SELECT + Backlight test did not reproduce `F9`, and the device OFF state was silent. See the [Mode Change Plan](docs/MODE_CHANGE_PLAN.md) and [Testing History](docs/TESTING_HISTORY.md).
 
 ---
 
@@ -39,6 +39,7 @@ We have discovered a hidden diagnostic state (**Protocol ID 41**) triggered by a
 *   `fuzzer_monitor.py`: Long-duration stream logger for the automated rig.
 *   `ut33c_raw_capture.py`: Utility for capturing raw hex frames for new modes.
 *   `deploy_pico.ps1`: Automated build and upload script for the RP2040.
+*   `pico_rig_runner.py`: Host-side controller for repeatable Pico rig tests over USB serial.
 
 ### 📂 Subdirectories
 *   `docs/`: Full technical documentation, protocol maps, and wiring guides.

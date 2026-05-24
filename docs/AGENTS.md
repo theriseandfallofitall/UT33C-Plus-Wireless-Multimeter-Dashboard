@@ -5,6 +5,7 @@
 This repository documents and decodes UART output from the UNI-T UT33C+ multimeter.
 
 - `ut33c_plus_final_logger.py` contains the high-level serial reader and decoder.
+- `pico_rig_runner.py` controls the serial-driven Pico rig and logs HIL runs.
 - `README.md` gives the project overview and research summary.
 - `docs/PROTOCOL_MAP.md` records the 10-byte protocol observations and frame details.
 - `docs/HARDWARE_SPEC.md` describes the automated rig and HIL integration steps.
@@ -28,19 +29,31 @@ pip install pyserial
 Run the logger against a Windows serial port:
 
 ```powershell
-python .\ut33c_plus_logger.py --port COM5
+python .\ut33c_plus_final_logger.py
 ```
 
-Run with CSV output:
+The logger writes a timestamped CSV under `logs/` automatically:
 
 ```powershell
-python .\ut33c_plus_logger.py --port COM5 --csv readings.csv
+python .\ut33c_plus_final_logger.py
 ```
 
 Check that the script compiles:
 
 ```powershell
-python -m py_compile .\ut33c_plus_logger.py
+python -m py_compile .\ut33c_plus_final_logger.py .\pico_rig_runner.py
+```
+
+Build the Pico firmware:
+
+```powershell
+pio run -d .\pico\cpp
+```
+
+Monitor both meter UARTs through the Pico rig:
+
+```powershell
+python .\pico_rig_runner.py monitor --meter-port BOTH --duration-ms 5000
 ```
 
 ## Coding Style & Naming Conventions
@@ -53,7 +66,7 @@ When changing decoder behavior, preserve existing CLI flags unless there is a cl
 
 No automated test suite is committed yet. For decoder changes, add focused tests under `tests/test_*.py` using captured frame bytes from the protocol notes. Cover checksum rejection, marker alignment, signed 16-bit conversion, known voltage ranges, and unknown valid ranges.
 
-Until tests exist, run `python -m py_compile .\ut33c_plus_logger.py` and manually validate with a real or recorded serial stream.
+Until tests exist, run `python -m py_compile .\ut33c_plus_final_logger.py .\pico_rig_runner.py`, `pio run -d .\pico\cpp`, and manually validate with a real or recorded serial stream.
 
 ## Commit & Pull Request Guidelines
 

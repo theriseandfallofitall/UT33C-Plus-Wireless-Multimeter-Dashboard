@@ -3,7 +3,7 @@
 This document details how to connect a Raspberry Pi Pico to the UNI-T UT33C+ for fully automated reverse engineering and protocol discovery.
 
 ## ⚠️ CRITICAL SAFETY WARNING
-The internal UART Ground of the multimeter is directly connected to the **COM (Black Probel)** lead. 
+The internal UART Ground of the multimeter is directly connected to the **COM (black probe)** lead. 
 - **DO NOT** connect the multimeter to high voltage while it is wired to the Pi Pico.
 - If the Pico is connected to your PC via USB, your PC's ground is now tied to the multimeter's COM lead. 
 - **ALWAYS** power the multimeter from a battery or an isolated 3V supply during testing.

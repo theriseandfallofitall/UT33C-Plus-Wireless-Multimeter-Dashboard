@@ -15,11 +15,18 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "`n--- [2/3] Searching for RPI-RP2 Drive ---" -ForegroundColor Cyan
+$picotool = "C:\Users\StaticLabs\.platformio\packages\tool-picotool-rp2040-earlephilhower\picotool.exe"
 $drive = Get-Volume | Where-Object { $_.FileSystemLabel -eq "RPI-RP2" } | Select-Object -ExpandProperty DriveLetter -ErrorAction SilentlyContinue
 
 if (-not $drive) {
-    Write-Host "Error: Pico not found in BOOTSEL mode!" -ForegroundColor Yellow
-    Write-Host "Please hold the BOOT button while plugging in the USB cable."
+    Write-Host "Pico drive not found. Attempting to force BOOTSEL via picotool..." -ForegroundColor Yellow
+    & $picotool reboot -f
+    Start-Sleep -Seconds 2
+    $drive = Get-Volume | Where-Object { $_.FileSystemLabel -eq "RPI-RP2" } | Select-Object -ExpandProperty DriveLetter -ErrorAction SilentlyContinue
+}
+
+if (-not $drive) {
+    Write-Host "Error: Pico not found in BOOTSEL mode even after force reboot!" -ForegroundColor Red
     exit 1
 }
 
