@@ -8,26 +8,23 @@ The project has successfully transition to a **Data-Driven Automated HIL Rig**. 
 4.  **Baud Rate Filter:** Verified that the meter ignores 9600 and 115200 baud, suggesting the "Factory Unlock" sequence is natively **2400 baud**.
 
 ## 🧠 Core Assumptions (For Handoff)
-*   **Assumption 1:** State `41` is a "Bootloader Idle" state. It expects a specific multi-byte sequence (likely ASCII) to transition into a "Diagnostic" or "EEPROM Read" state.
-*   **Assumption 2:** The meter uses a 2400 baud fixed bitrate even for its diagnostic shell (highly unusual, but supported by current data).
-*   **Assumption 3:** Pad 1 (Soft Reset) is the most reliable entry point as it keeps the UART peripheral energized.
+*   **Assumption 1:** The chipset is an **SDIC SD7501** (or close variant).
+*   **Assumption 2:** State `41` is a "Bootloader Ready" signal (ASCII 'A').
+*   **Assumption 3:** The command gateway requires the **`0xA5`** binary prefix.
+
+## 🚀 Mode Change Roadmap
+We have shifted from general fuzzing to a targeted protocol attack. The new goal is to achieve **Remote Mode Switching** (e.g., dial is on Continuity, but UART forces it to 20V DC).
+- **Strategy Document:** [docs/MODE_CHANGE_PLAN.md](docs/MODE_CHANGE_PLAN.md)
 
 ## 📝 TODO: Next Research Phase
-*   [x] **R12: Long NULL Blast (10s):** Confirmed hit of Boot state (`81`) but no new recovery modes found.
-*   [x] **R13: EEPROM Address Fuzz:** Successfully triggered State `41` momentarily at Address 1.
-*   [x] **R14: Double-Reset Glitch:** No bypass observed.
-*   [x] **R15: High-Side Jitter:** No fetch window anomaly triggered.
-*   [x] **R16: State 41 Sustainer:** Found that continuous NULL blasts do *not* sustain State 41; it reverts to normal after one frame.
-*   [x] **R17: Precise Command Injection:** ASCII commands ignored when sent immediately after trigger.
-*   [x] **R19: Trigger Speed Fuzz:** Confirmed that inter-byte delay (1ms-10ms) alone doesn't stabilize State 41 if commands are immediate.
-*   [ ] **R20: Gateway Stabilization:** Implemented. Awaiting results of variable post-trigger delays.
+*   [x] **R20: Gateway Stabilization:** Confirmed gateway is timing-sensitive and ignores ASCII strings.
+*   [ ] **R21: The A5 Handshake:** Implement real-time `41` detection and response with `0xA5`.
+*   [ ] **R22: Button Emulation:** Test `0xA5 0x01 [ID]` commands to simulate SELECT button.
 
 ## 📍 Where We Left Off
 The YD-RP2040 rig is running the latest C++ fuzzer. All discovery runs (R01-R11) are logged in `docs/TESTING_HISTORY.md` and `logs/fuzzer_runs/`. The "Door" is open (State 41), we just need the "Key."
 
 ---
-## ⚠️ Update (May 23, 2026)
-The C++ firmware (`pico/cpp/src/main.cpp`) was found to be a basic "hello world" serial test, not the advanced fuzzer described in some documents. The fuzzing logic needs to be implemented.
 
 ## 📂 Key Files
 *   `ut33c_plus_final_logger.py`: The production PC tool for logging data.

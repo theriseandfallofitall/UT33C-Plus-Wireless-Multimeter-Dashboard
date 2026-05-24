@@ -22,6 +22,16 @@ If you are building the automated test rig:
 
 ---
 
+## 🚀 Research & Discoveries
+
+### 🧠 Chipset Identification
+The meter has been identified as likely using the **SDIC SD7501** SoC. This is based on its unique 10-byte UART protocol and 2400 baud telemetry.
+
+### 🔓 Diagnostic Gateway (State 41)
+We have discovered a hidden diagnostic state (**Protocol ID 41**) triggered by a NULL burst during boot. We are currently working on a [Mode Change Plan](docs/MODE_CHANGE_PLAN.md) to enable remote software control of the multimeter.
+
+---
+
 ## 📁 Repository Structure
 
 ### 🛠 Tools
