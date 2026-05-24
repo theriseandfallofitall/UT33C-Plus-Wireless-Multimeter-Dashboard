@@ -31,29 +31,33 @@ Chronological record of technical findings and protocol anomalies.
 *   **Observation:** During specific reset windows, the ADC count reports `7F FF` instead of the expected `00 00` or floating values.
 *   **Analysis:** This indicates the ADC is in "Saturation" or "Not Ready" state while the MCU performs its own internal self-test.
 
-### 6. Transition to "Burst Mode" Fuzzing
-*   **Strategy Shift:** Single and 2-byte fuzzing confirmed the physical link but failed to trigger a diagnostic mode.
-*   **New Approach:** Implementing a library of multi-byte sequences ("SET", "FACTORY", "UNI-T") to blast during the Soft Reset (Pad 1) window.
-*   **Goal:** Trigger complex state machine transitions in the bootloader that require multi-character handshakes.
+### 7. Chipset Identification: SDIC SD7501
+*   **Discovery:** Comparative protocol research identifies the UT33C+ IC as likely an **SD7501** (or derivative from Jinghua Microelectronics).
+*   **Key Evidence:** Native 10-byte protocol @ 2400 baud and the specific `AB CD` header found across the "plus" series.
+
+### 8. The "Ready" Signal (State 41 / ASCII 'A')
+*   **Discovery:** In SDIC/Jinghua bootloaders, responding with `0x41` (ASCII 'A') indicates the MCU has successfully synchronized with a serial handshake (the NULL burst) and is awaiting a **Command Prefix**.
+*   **Handshake Key:** Standard command prefix for this chipset is **`0xA5`**.
+
+### 9. Hardware Strapping (Button Requirement)
+*   **Finding:** Diagnostic mode entry is **hardware-strapped**. 
+*   **Verification:** Experiment R27 confirmed that the MCU ignores all UART activity unless a physical button (SELECT or HOLD) is held during the reset window.
+*   **Timing:** The bootloader listener window opens approximately **1.2 seconds** after a Hard Power-ON, signaled by an `AB FD` marker.
 
 ---
 
-## 📊 Fuzzer Experiment Matrix
+## 📊 Fuzzer Experiment Matrix (Updated May 24, 2026)
 
-| Run ID | Meter Mode | Reset Trigger | Strategy | Duration | Result / Discovery | Status |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **R01** | 20V DC | Pad 2 (Hard) | Deep (AB 00-FF) | 7m | Found `81` ID & `8D` flag artifact | ✅ Complete |
-| **R02** | 10A DC | Pad 2 (Hard) | Deep (AB 00-FF) | 7m | Confirmed dynamic `81 0B` signature | ✅ Complete |
-| **R03** | Continuity | Pad 2 (Hard) | Deep (AB 00-FF) | 7m | Long `81` persistence, noise reflection | ✅ Complete |
-| **R04** | Continuity | Pad 1 (Soft) | Deep (AB 00-FF) | 7m | Soft Reset window confirmed valid | ✅ Complete |
-| **R05** | Continuity | Pad 1 (Soft) | Burst Library | 2m | Discovered **Protocol ID 41** after NULL burst. FACTORY burst triggered immediate output before header. | ✅ Complete |
-| **R06** | Continuity | Pad 1 (Soft) | Null Hold (2s) | 3m | **Confirmed ID 41 stability.** Continuous NULL hold pinned the MCU in ID 41 state. ID 41 also appeared after UNI-T and RESET bursts. | ✅ Complete |
-| **R08** | Continuity | Pad 1 (Soft) | State 41 Deep Fuzz | 7m | **State 41 verified as stable.** All 256 single-byte commands maintained ID 41 without triggering a secondary state transition. | ✅ Complete |
-| **R09** | Continuity | Pad 1 (Soft) | State 41 Burst | 2m | **No Data Dump triggered.** Bursts ('READ', 'INFO', etc.) caused reflections and transient '41' or '81' states, but meter returned to measurement loop. | ✅ Complete |
-| **R10** | Continuity | Pad 1 (Soft) | Multi-Baud (9600) | 2m | **Injection Ignored.** 9600 baud bursts did not trigger any state changes. Meter maintained standard `81 -> 01` boot transition. | ✅ Complete |
-| **R11** | Continuity | Pad 1 (Soft) | Multi-Baud (115200) | 2m | **Injection Ignored.** 115k baud high-speed bursts did not trigger diagnostic shifts. MCU appears to filter non-2400 baud data during boot. | ✅ Complete |
-| **R12** | Continuity | Pad 1 (Soft) | Long NULL Blast (10s) | 2m | *Awaiting Run - Hunting for Watchdog/Buffer overflow* | 🕒 Pending |
-| **R07** | 10A DC | Pad 1 (Soft) | Burst Library | 2m | *Awaiting Run* | 🕒 Pending |
+| Run ID | Meter Mode | Reset Trigger | Strategy | Discovery / Result | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **R01-R11** | Various | Pad 1/2 | Basic Fuzzing | Found IDs `81` and `41`. Confirmed 2400 baud native filtering. | ✅ Complete |
+| **R12-R19** | Continuity | Pad 1 (Soft) | Adv. Timing | Confirmed ID `41` is transient; NULL blasts do not sustain it. | ✅ Complete |
+| **R20** | Continuity | Pad 1 (Soft) | Stabilization | Gateway is timing-critical and ignores ASCII strings. | ✅ Success |
+| **R25** | Continuity | Pad 1 (Soft) | Hold & Reset | User held SELECT. Found new markers: `F9` and `81`. | ✅ Success |
+| **R27** | Continuity | Pad 1 (Soft) | Auto Discovery | Confirmed **Physical Button is Mandatory** for gateway entry. | ✅ Success |
+| **R30-R31** | Continuity | Pad 2 (Hard) | Hard-Power | Identified early boot markers (`E0`, `AB FD`) after full power cycle. | ✅ Success |
+| **R33** | Continuity | Pad 2 (Hard) | Hard-Power | Discovered `AB FD` marker consistently appears at **1.2s offset**. | ✅ Success |
+| **R34** | Continuity | Pad 2 (Hard) | Precise Resp. | *Awaiting Run - Target: 0xA5 command injection at 1.2s* | 🕒 Active |
 
 ### 🚀 Future Targets (Remaining to be tried):
 1.  **Multi-Baud Handshake:** Testing Pad 1 Reset while injecting at 9600 or 115200 baud.

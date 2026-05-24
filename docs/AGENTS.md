@@ -4,10 +4,13 @@
 
 This repository documents and decodes UART output from the UNI-T UT33C+ multimeter.
 
-- `ut33c_plus_logger.py` contains the serial reader, frame finder, checksum validation, decoder, CLI, and optional CSV logging.
-- `README.md` gives the short project overview.
-- `UT33C_PLUS_UART_PROTOCOL_FINDINGS.md` records protocol observations and frame details.
-- `UT33C_PLUS_INTEGRATION_STEPS.md` describes hardware and integration steps.
+- `ut33c_plus_final_logger.py` contains the high-level serial reader and decoder.
+- `README.md` gives the project overview and research summary.
+- `docs/PROTOCOL_MAP.md` records the 10-byte protocol observations and frame details.
+- `docs/HARDWARE_SPEC.md` describes the automated rig and HIL integration steps.
+- `docs/MODE_CHANGE_PLAN.md` outlines the current strategy for remote control.
+- `docs/STATUS.md` tracks current blockers and major discoveries.
+- `docs/TESTING_HISTORY.md` provides a chronological log of all HIL fuzzer runs.
 - Generated files such as `__pycache__/`, virtual environments, logs, and local `.env` files are ignored.
 
 Keep new source files at the repository root unless the project grows enough to justify a package layout. Put future tests under `tests/`.

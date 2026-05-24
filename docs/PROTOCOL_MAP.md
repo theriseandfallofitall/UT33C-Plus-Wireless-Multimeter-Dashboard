@@ -12,7 +12,17 @@ This port auto-transmits raw data as soon as the meter is powered.
 | Byte | Field | Description |
 | :--- | :--- | :--- |
 | 0-1 | Header | Fixed sync bytes: `AB CD`. |
-| 2 | Protocol ID | `01` (Normal), `81` (Boot), `41` (Observed after NULL burst). |
+| 2 | Protocol ID | `01` (Normal), `81` (Boot), `41` (Gateway / Ready). |
+
+## Diagnostic & Boot Markers
+During the initialization phase or when physical buttons are held, the MCU emits special markers:
+
+| Marker | Meaning | Significance |
+| :--- | :--- | :--- |
+| **`AB FD`** | Bootloader Listener | Emitted ~1.2s after hard power-on if SELECT is held. MCU is listening for `0xA5` commands. |
+| **`F9`** | Button-Active Marker | Observed in Byte 2 position when physical buttons (SELECT/HOLD) are engaged during reset. |
+| **`E0`** | Early Reset Junk | First byte seen after power-up. Likely clock stabilization noise. |
+
 | 3 | Mode Byte | Dial range unit. Bit 7 (`0x80`) is a status flag (Seen in `8D`). |
 | 4-7 | ADC Count | 32-bit Big Endian SIGNED integer (Internal counts). |
 | 8 | Status | Flags (00=Normal, 04/03=Often seen in OL). |
