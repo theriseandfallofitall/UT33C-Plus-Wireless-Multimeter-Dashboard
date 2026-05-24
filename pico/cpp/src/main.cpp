@@ -94,66 +94,71 @@ void setup() {
     Serial2.setRX(PIN_EXT_RX);
     Serial2.begin(2400);
 
-    delay(2000);
     Serial.println("\n\n########################################");
     Serial.println("# UT33C+ PICO 2 AUTOMATED RIG ONLINE   #");
+    Serial.println("# STATUS: WAITING FOR MONITOR START... #");
     Serial.println("########################################");
+
+    // Wait for start command ('S') from python monitor
+    while (true) {
+        if (Serial.available()) {
+            char c = Serial.read();
+            if (c == 'S') {
+                Serial.println("[SYS] START COMMAND RECEIVED. BEGINNING FUZZ CYCLE.");
+                break;
+            }
+        }
+        // Heartbeat while waiting
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(500);
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(500);
+    }
 }
 
 void loop() {
-    // Phase 1: Baud Rate Sweep on Boot
-    long bauds[] = {2400, 4800, 9600, 19200, 38400, 115200};
-    for (int i = 0; i < 6; i++) {
+    // Phase 1: Standard Baud Rate Sweep
+    long bauds[] = {2400, 4800, 9600, 115200};
+    for (int i = 0; i < 4; i++) {
         Serial.print("\n[PHASE 1] Testing Boot @ ");
         Serial.print(bauds[i]);
         Serial.println(" baud...");
-        
         Serial1.begin(bauds[i]);
         Serial2.begin(bauds[i]);
-        
-        powerCycle(50); // Fast boot monitor
+        powerCycle(50);
         monitor(2000);
     }
 
-    // Phase 2: Reset Injection (Pad 2)
-    Serial.println("\n[PHASE 2] Starting Reset Injection Fuzzing...");
+    // Phase 2: R12 - Long NULL Blast (Watchdog Hunting)
+    Serial.println("\n[PHASE 2] Starting R12: LONG NULL BLAST (10 seconds)...");
     Serial1.begin(2400);
     Serial2.begin(2400);
+
+    pulseReset(PIN_PAD1, 100);
     
-    // Commands often used in UNI-T or generic multimeters
-    const int CMD_COUNT = 5;
-    byte cmds[CMD_COUNT][2] = {
-        {0xAB, 0x01}, // Sync/Wake
-        {0xAB, 0x00}, // Reset
-        {0x55, 0xAA}, // Pattern
-        {0x01, 0x02}, // Generic
-        {0x7F, 0x7F}  // All high
-    };
-
-    for (int i = 0; i < CMD_COUNT; i++) {
-        Serial.print("Target: ");
-        Serial.print(cmds[i][0], HEX);
-        Serial.print(" ");
-        Serial.println(cmds[i][1], HEX);
-
-        pulseReset(PIN_PAD2, 100);
-        
-        // Rapid injection during the reset recovery window
-        for (int j = 0; j < 100; j++) {
-            Serial1.write(cmds[i], 2);
-            Serial2.write(cmds[i], 2);
-            delayMicroseconds(100);
+    // Hold RX line LOW (Continuous 0x00) for 10 seconds
+    uint32_t start_blast = millis();
+    while (millis() - start_blast < 10000) {
+        Serial1.write((uint8_t)0x00);
+        Serial2.write((uint8_t)0x00);
+        delayMicroseconds(500); // Sustainable blast rate
+        if ((millis() - start_blast) % 1000 == 0) {
+            Serial.print("."); // Progress dots
         }
-        
-        monitor(1500);
     }
+    Serial.println("\n[SYS] Blast complete. Monitoring for recovery...");
+    
+    monitor(5000); // Long monitor for watchdog reboot
 
-    Serial.println("\n[SYS] Loop complete. Waiting for next cycle...");
-    // Heartbeat while waiting
-    for(int i=0; i<10; i++) {
+    Serial.println("\n\n########################################");
+    Serial.println("# EXPERIMENT R12 COMPLETE              #");
+    Serial.println("########################################");
+    Serial.println("[SYS] Entering terminal state. Please switch mode and reset Pico.");
+
+    while (true) {
         digitalWrite(LED_BUILTIN, HIGH);
-        delay(100);
+        delay(50);
         digitalWrite(LED_BUILTIN, LOW);
-        delay(900);
+        delay(50);
     }
 }

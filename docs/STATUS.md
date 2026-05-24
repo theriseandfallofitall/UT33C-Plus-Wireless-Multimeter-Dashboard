@@ -1,26 +1,25 @@
-# Project Status: UT33C+ UART Decode
-**Last Updated: May 24, 2026**
-
 ## 🎯 Current Status
-The project has successfully transitioned to an **automated hardware-in-the-loop (HIL) fuzzer rig**. We are now performing long-duration discovery to unlock bidirectional (RX) control.
+The project has successfully transition to a **Data-Driven Automated HIL Rig**. We have identified a specific firmware gateway (State 41) for bidirectional control and verified the physical integrity of the RX link.
 
-## 🏆 Major Discoveries
-1.  **Raw Telemetry Port:** Stable 2400 baud stream confirmed on internal pads.
-2.  **ADC Protocol:** Decoded 10-byte binary frames. 
-    *   **Checksum:** `sum(Bytes 2..7) & 0xFF` (Verified).
-    *   **Value:** Signed 32-bit big-endian ADC counts.
-3.  **Power Sequencing:** Discovered that a clean power cycle requires an **inverted dual-rail cut**:
-    *   **Positive Rail:** Active HIGH (3.3V).
-    *   **GND Rail:** Active LOW (GND).
-4.  **Hardware Rig:** Successfully deployed on a **YD-RP2040** board. The rig now handles power-on resets, baud rate sweeps, and rapid command injection.
-5.  **Stream Logging:** Implemented `fuzzer_monitor.py` for structured, timestamped session logging of fuzzer events and telemetry.
+## 🏆 Major Discoveries (May 24, 2026)
+1.  **State 41 Unlock:** Discovered that a **NULL burst** during Soft Reset locks the MCU into Protocol ID `41` (Awaiting Command). This is our primary target for future "handshake" attempts.
+2.  **Physical Proof:** Confirmed that RX injections cause measurable reflections on the TX line, proving the electrical path to the MCU is valid.
+3.  **Inverted Dual-Rail Power:** Perfected the power-cycling logic required to fully clear internal MCU and ADC registers.
+4.  **Baud Rate Filter:** Verified that the meter ignores 9600 and 115200 baud, suggesting the "Factory Unlock" sequence is natively **2400 baud**.
 
-## 🚧 Challenges & Blockers
-*   **RX Lock:** The meter's RX line is currently non-responsive. We are fuzzing common UNI-T sync sequences (`AB 01`, `AB 00`) during the post-reset boot window.
-*   **Opto-Port Noise:** The external opto-port remains much noisier than the internal pads, but is being monitored simultaneously.
+## 🧠 Core Assumptions (For Handoff)
+*   **Assumption 1:** State `41` is a "Bootloader Idle" state. It expects a specific multi-byte sequence (likely ASCII) to transition into a "Diagnostic" or "EEPROM Read" state.
+*   **Assumption 2:** The meter uses a 2400 baud fixed bitrate even for its diagnostic shell (highly unusual, but supported by current data).
+*   **Assumption 3:** Pad 1 (Soft Reset) is the most reliable entry point as it keeps the UART peripheral energized.
+
+## 📝 TODO: Next Research Phase
+*   [ ] **R12: Long NULL Blast (10s):** Hold RX low for 10+ seconds to see if a Watchdog Timeout triggers a "Recovery Mode."
+*   [ ] **R13: EEPROM Address Fuzz:** Inject sequences like `READ 0000`, `READ 0001` inside the State 41 window.
+*   [ ] **R14: Double-Reset Glitch:** Rapidly pulse Pad 1 twice (<10ms) to bypass the `81 -> 01` boot transition.
+*   [ ] **R15: High-Side Jitter:** Vary the Power-ON delay (50ms to 500ms) while blasting `55 AA` to find the exact opcode fetch window.
 
 ## 📍 Where We Left Off
-The YD-RP2040 is running the Phase 1 (Baud) and Phase 2 (Injection) loops. `fuzzer_monitor.py` is active and logging all interactions to `logs/fuzzer_runs/` for future AI analysis.
+The YD-RP2040 rig is running the latest C++ fuzzer. All discovery runs (R01-R11) are logged in `docs/TESTING_HISTORY.md` and `logs/fuzzer_runs/`. The "Door" is open (State 41), we just need the "Key."
 
 ---
 ## ⚠️ Update (May 23, 2026)

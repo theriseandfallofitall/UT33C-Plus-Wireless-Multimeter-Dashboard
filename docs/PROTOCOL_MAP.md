@@ -12,8 +12,8 @@ This port auto-transmits raw data as soon as the meter is powered.
 | Byte | Field | Description |
 | :--- | :--- | :--- |
 | 0-1 | Header | Fixed sync bytes: `AB CD`. |
-| 2 | Protocol ID | Always `01` in confirmed captures. |
-| 3 | Mode Byte | Identifies the range/unit on the dial. |
+| 2 | Protocol ID | `01` (Normal), `81` (Boot), `41` (Observed after NULL burst). |
+| 3 | Mode Byte | Dial range unit. Bit 7 (`0x80`) is a status flag (Seen in `8D`). |
 | 4-7 | ADC Count | 32-bit Big Endian SIGNED integer (Internal counts). |
 | 8 | Status | Flags (00=Normal, 04/03=Often seen in OL). |
 | 9 | Checksum | `sum(Bytes 2..7) & 0xFF` (Excludes Status byte). |
