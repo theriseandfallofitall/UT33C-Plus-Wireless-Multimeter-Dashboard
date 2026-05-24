@@ -45,7 +45,12 @@ def main():
 
     try:
         with serial.Serial(port, BAUD, timeout=0.1) as ser:
-            with open(log_file, "w") as f:
+            # Send the start command to trigger the Pico fuzzer
+            time.sleep(2) # Wait for serial to stabilize
+            ser.write(b'S')
+            print("[SYS] Sent START command to Pico.")
+            
+            with open(log_file, "w", encoding="latin-1") as f:
                 f.write(f"# UT33C+ FUZZER SESSION START: {datetime.now().isoformat()}\n")
                 f.write(f"# METER MODE: {current_mode}\n")
                 f.write(f"# PORT: {port} | BAUD: {BAUD}\n\n")
@@ -63,6 +68,11 @@ def main():
                             # Write to log
                             f.write(entry + "\n")
                             f.flush()
+
+                            # Auto-exit on terminal state
+                            if "Entering terminal state" in line:
+                                print("\n[SYS] Pico reached terminal state. Exiting monitor.")
+                                return
                     
                     time.sleep(0.001) # High frequency polling
                     

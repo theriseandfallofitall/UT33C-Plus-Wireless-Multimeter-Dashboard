@@ -116,49 +116,67 @@ void setup() {
     }
 }
 
-void loop() {
-    // Phase 1: Standard Baud Rate Sweep
-    long bauds[] = {2400, 4800, 9600, 115200};
-    for (int i = 0; i < 4; i++) {
-        Serial.print("\n[PHASE 1] Testing Boot @ ");
-        Serial.print(bauds[i]);
-        Serial.println(" baud...");
-        Serial1.begin(bauds[i]);
-        Serial2.begin(bauds[i]);
-        powerCycle(50);
-        monitor(2000);
-    }
-
-    // Phase 2: R12 - Long NULL Blast (Watchdog Hunting)
-    Serial.println("\n[PHASE 2] Starting R12: LONG NULL BLAST (10 seconds)...");
+void enterState41() {
     Serial1.begin(2400);
-    Serial2.begin(2400);
-
-    pulseReset(PIN_PAD1, 100);
-    
-    // Hold RX line LOW (Continuous 0x00) for 10 seconds
-    uint32_t start_blast = millis();
-    while (millis() - start_blast < 10000) {
+    pulseReset(PIN_PAD1, 50);
+    // Send 8x NULL to trigger State 41
+    for (int i = 0; i < 8; i++) {
         Serial1.write((uint8_t)0x00);
-        Serial2.write((uint8_t)0x00);
-        delayMicroseconds(500); // Sustainable blast rate
-        if ((millis() - start_blast) % 1000 == 0) {
-            Serial.print("."); // Progress dots
+        delay(10);
+    }
+}
+
+void gatewayStabilization(const char* cmd) {
+    for (int postTriggerDelay = 10; postTriggerDelay <= 200; postTriggerDelay += 10) {
+        Serial.print("\n[R20] Post-Trigger Delay: ");
+        Serial.print(postTriggerDelay);
+        Serial.println("ms");
+        
+        Serial1.begin(2400); // Re-init UART
+        pulseReset(PIN_PAD1, 50);
+        
+        // 1. Trigger State 41 (Proven timing from R13)
+        for (int i = 0; i < 8; i++) {
+            Serial1.write((uint8_t)0x00);
+            delay(10);
+        }
+        
+        // 2. Variable stabilization delay
+        delay(postTriggerDelay);
+        
+        // 3. Inject
+        Serial1.println(cmd);
+        
+        // 4. Monitor
+        uint32_t start = millis();
+        while (millis() - start < 1500) {
+            if (Serial1.available()) {
+                Serial.print("INT: ");
+                while (Serial1.available()) {
+                    byte b = Serial1.read();
+                    if (b < 0x10) Serial.print("0");
+                    Serial.print(b, HEX);
+                    Serial.print(" ");
+                }
+                Serial.println();
+            }
+            yield();
         }
     }
-    Serial.println("\n[SYS] Blast complete. Monitoring for recovery...");
-    
-    monitor(5000); // Long monitor for watchdog reboot
+}
 
+void loop() {
     Serial.println("\n\n########################################");
-    Serial.println("# EXPERIMENT R12 COMPLETE              #");
+    Serial.println("# STARTING R20: GATEWAY STABILIZATION  #");
     Serial.println("########################################");
-    Serial.println("[SYS] Entering terminal state. Please switch mode and reset Pico.");
+    
+    gatewayStabilization("FACTORY");
 
+    Serial.println("\n[SYS] R20 Cycle Complete. Entering terminal state.");
     while (true) {
         digitalWrite(LED_BUILTIN, HIGH);
-        delay(50);
+        delay(200);
         digitalWrite(LED_BUILTIN, LOW);
-        delay(50);
+        delay(200);
     }
 }

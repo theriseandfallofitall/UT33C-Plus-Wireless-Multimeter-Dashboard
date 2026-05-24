@@ -26,23 +26,32 @@ The internal UART Ground of the multimeter is directly connected to the **COM (B
 | **GP1** | UART0 RX | **Internal TX Pad** | Monitor raw high-speed data |
 | **GP4** | UART1 TX | **External RX Pad** | Inject commands to opto-port |
 | **GP5** | UART1 RX | **External TX Pad** | Monitor legacy PC-Link data |
-| **GP14** | GPIO OUT | **Pad 1 (Soft Reset)** | Trigger logic reset / Long beep |
-| **GP15** | GPIO OUT | **Pad 2 (Hard Reset)** | Trigger CPU halt / Full reboot |
-| **GP16** | GPIO OUT | **MOSFET Gate** | Automated Power Control |
+| **GP14** | GPIO OUT | **Pad 1 (Soft Reset)** | Trigger logic reset / Long beep (Active LOW) |
+| **GP15** | GPIO OUT | **Pad 2 (Hard Reset)** | Trigger CPU halt / Full reboot (Active LOW) |
+| **GP16** | GPIO OUT | **MOSFET Positive** | 3.3V Rail Control (Active HIGH: 1=ON) |
+| **GP17** | GPIO OUT | **MOSFET Negative** | GND Rail Control (Active LOW: 0=ON) |
 | **GND** | Ground | **Meter COM / UART GND**| Common Ground reference |
 
 ---
 
-## ⚡ Power Control Schematic (MOSFET)
+## ⚡ Power Control Schematic (Inverted Dual-Rail)
 
-To automate power cycling, we use an N-Channel MOSFET as a "Low-Side Switch". This allows the Pico to completely disconnect the meter from its battery.
+To achieve a "True Zero" state and clear internal MCU/ADC registers, we use a dual-MOSFET setup to isolate both the positive and negative rails. This prevents capacitor "leakage" through the MCU's internal protection diodes.
 
-1. **Meter Battery Negative (-)** -> MOSFET **Drain**.
-2. **Pico GND** -> MOSFET **Source** -> **Meter VCC Negative Input**.
-3. **Pico GP16** -> MOSFET **Gate**.
-4. **Meter Battery Positive (+)** -> **Meter VCC Positive Input**.
+### 1. Positive Rail (GP16)
+- **Component:** P-Channel or High-Side N-Channel MOSFET.
+- **Logic:** Active HIGH (1 = 3.3V Connected to Meter VCC).
+- **Function:** Primary power delivery.
 
-*When GP16 is HIGH, the meter is ON. When GP16 is LOW, the meter is OFF.*
+### 2. Negative Rail (GP17)
+- **Component:** N-Channel MOSFET (Low-Side Switch).
+- **Logic:** Active LOW (0 = Meter GND connected to Pico GND).
+- **Function:** Ensures full rail isolation during reset cycles.
+
+### 🚀 Power Cycle Sequence
+1. **CUT:** GP16 -> LOW, GP17 -> HIGH.
+2. **WAIT:** 1500ms (Full discharge).
+3. **RESTORE:** GP16 -> HIGH, GP17 -> LOW.
 
 ---
 

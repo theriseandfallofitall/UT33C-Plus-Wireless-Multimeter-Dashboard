@@ -13,10 +13,14 @@ The project has successfully transition to a **Data-Driven Automated HIL Rig**. 
 *   **Assumption 3:** Pad 1 (Soft Reset) is the most reliable entry point as it keeps the UART peripheral energized.
 
 ## 📝 TODO: Next Research Phase
-*   [ ] **R12: Long NULL Blast (10s):** Hold RX low for 10+ seconds to see if a Watchdog Timeout triggers a "Recovery Mode."
-*   [ ] **R13: EEPROM Address Fuzz:** Inject sequences like `READ 0000`, `READ 0001` inside the State 41 window.
-*   [ ] **R14: Double-Reset Glitch:** Rapidly pulse Pad 1 twice (<10ms) to bypass the `81 -> 01` boot transition.
-*   [ ] **R15: High-Side Jitter:** Vary the Power-ON delay (50ms to 500ms) while blasting `55 AA` to find the exact opcode fetch window.
+*   [x] **R12: Long NULL Blast (10s):** Confirmed hit of Boot state (`81`) but no new recovery modes found.
+*   [x] **R13: EEPROM Address Fuzz:** Successfully triggered State `41` momentarily at Address 1.
+*   [x] **R14: Double-Reset Glitch:** No bypass observed.
+*   [x] **R15: High-Side Jitter:** No fetch window anomaly triggered.
+*   [x] **R16: State 41 Sustainer:** Found that continuous NULL blasts do *not* sustain State 41; it reverts to normal after one frame.
+*   [x] **R17: Precise Command Injection:** ASCII commands ignored when sent immediately after trigger.
+*   [x] **R19: Trigger Speed Fuzz:** Confirmed that inter-byte delay (1ms-10ms) alone doesn't stabilize State 41 if commands are immediate.
+*   [ ] **R20: Gateway Stabilization:** Implemented. Awaiting results of variable post-trigger delays.
 
 ## 📍 Where We Left Off
 The YD-RP2040 rig is running the latest C++ fuzzer. All discovery runs (R01-R11) are logged in `docs/TESTING_HISTORY.md` and `logs/fuzzer_runs/`. The "Door" is open (State 41), we just need the "Key."
