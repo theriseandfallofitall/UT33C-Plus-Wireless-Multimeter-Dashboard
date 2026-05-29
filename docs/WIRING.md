@@ -8,7 +8,7 @@ By connecting three wires to the main PCB, I can broadcast this data over Blueto
 
 Open the back of your UT33C+ and locate the main PCB. 
 
-![Internal Wiring](..images/wiring.jpg)
+![Internal Wiring](../images/wiring.jpg)
 
 ### 1. The Internal UART (Telemetry Stream)
 Near the center/bottom of the board, you will find a set of test pads.
