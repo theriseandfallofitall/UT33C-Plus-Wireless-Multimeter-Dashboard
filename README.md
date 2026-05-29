@@ -1,91 +1,47 @@
-# UNI-T UT33C+ UART Decode and Reverse Engineering
+# UT33C+ UART Decode & Rig Control
 
-This repository contains the research notes, host tools, Pico firmware, and display tools used to decode the hidden UART telemetry stream from the UNI-T UT33C+ multimeter.
+This repository contains a suite of tools for decoding and interacting with the hidden UART telemetry stream from **UNI-T UT33C+** digital multimeters.
 
-The project has two main parts:
+## Core Features
+- **Real-time Decoding:** Fully mapped 2400 baud binary protocol for DCV, ACV, Resistance, Continuity, and Temperature.
+- **On-Screen Display:** Live UI with graphing, CSV logging, and snapshot capture.
+- **Automated Rig Control:** C++ firmware for the Pi Pico (YD-RP2040) to automate resets, monitoring, and diagnostic probing.
+- **Hardware Mapping:** Detailed mapping of internal pads, including the LCD/Keypad matrix.
 
-- Reverse engineering: protocol discovery, hardware-in-the-loop rig control, raw captures, and research notes.
-- On-screen display: live decoded readings, graphing, CSV logging, and snapshot capture.
-
-The Pico code follows the same split:
-
-- `pico/cpp/src/main.cpp`: passive UART passthrough firmware for direct display/logging workflows.
-- `pico/cpp/firmware/main_rig_command.cpp`: serial-controlled rig firmware used for automated reverse-engineering experiments.
+## Hardware Setup
+See [docs/HARDWARE_SPEC.md](docs/HARDWARE_SPEC.md) for pad locations and wiring.
+- **Internal UART:** Primary telemetry stream (2400 8N1).
+- **Reset Pads:** Pad 1 (Soft) and Pad 2 (Hard) for bootloader access.
+- **Matrix Pads:** LCD segment and button scanning interface.
 
 ## Quick Start
 
-Create a virtual environment and install the host dependencies:
+### 1. Flash the Pico
+The definitive firmware is the C++ Rig Command build.
+1.  Open `pico/cpp/` in PlatformIO.
+2.  Copy `pico/cpp/firmware/main_rig_command.cpp` to `pico/cpp/src/main.cpp`.
+3.  Flash to your Pico.
 
+### 2. Launch the Display
+For a real-time graphical interface:
 ```bash
-python -m venv .venv
-pip install -r requirements.txt
+# Using the Pico Rig (115200 baud USB)
+python -m display.big_screen_rig
+
+# Using a direct USB-TTL or Passthrough (2400 baud)
+python -m display.big_screen_direct
 ```
 
-### Direct UART logging
-
-Use this when the meter is connected through a USB-serial adapter, or through the Pico passthrough firmware:
-
+### 3. Data Logging
+To log telemetry to CSV without the UI:
 ```bash
 python -m tools.final_logger
 ```
 
-### Big-screen display
-
-Use the direct display for a normal 2400 baud UART stream:
-
-```bash
-python -m display.big_screen_direct
-```
-
-Use the rig display only when the Pico is running the command rig firmware:
-
-```bash
-python -m display.big_screen_rig
-```
-
-### Automated reverse-engineering rig
-
-The automated rig uses the command firmware and `tools/pico_rig_runner.py`:
-
-```bash
-python -m tools.pico_rig_runner status
-python -m tools.pico_rig_runner monitor --meter-port BOTH --duration-ms 5000
-python -m tools.pico_rig_runner r34
-```
-
-Build and deploy Pico firmware from the project root:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy_pico.ps1
-```
-
-See [docs/PICO_GUIDE.md](docs/PICO_GUIDE.md) before flashing, because only one Pico firmware profile should be active at a time.
-
-## Repository Layout
-
-| Path | Purpose |
-| :--- | :--- |
-| `ut33c/` | Shared Python package for protocol decoding and frame parsing. |
-| `display/` | Self-contained on-screen display workflow: apps, display config, port discovery, protocol wrapper, launch scripts, and display dependencies. |
-| `tools/` | Operational host tools for logging, capture, experimental control, and Pico rig control. |
-| `pico/cpp/` | PlatformIO firmware project for the Pico. |
-| `pico/micropython/` | Earlier MicroPython rig experiments. |
-| `research/` | Focused discovery scripts and fuzzing tools. |
-| `legacy/` | Older scripts retained for historical context. |
-| `docs/` | Protocol, hardware, wiring, status, and testing notes. |
-| `docs/README.md` | Documentation index. |
-| `tests/` | Decoder regression tests using captured fixture logs. |
-| `logs/` | Captured local logs and curated decoder fixtures. |
-
-## Current Findings
-
-- The meter emits 10-byte `AB CD` frames at 2400 baud.
-- The likely chipset family is SDIC/Jinghua SD7501 or a close variant.
-- Passive telemetry decoding is working for voltage, current, resistance, continuity, diode, and temperature modes.
-- Remote mode switching was investigated heavily, but no usable command unlock was found. The diagnostic path appears to require a physical button state plus an unknown authorization key.
-
-See [docs/STATUS.md](docs/STATUS.md), [docs/PROTOCOL_MAP.md](docs/PROTOCOL_MAP.md), and [docs/TESTING_HISTORY.md](docs/TESTING_HISTORY.md) for the full research record.
+## Documentation
+- [docs/PROTOCOL_MAP.md](docs/PROTOCOL_MAP.md) - Frame structure and range bytes.
+- [docs/STATUS.md](docs/STATUS.md) - Project status and major discoveries.
+- [docs/HARDWARE_SPEC.md](docs/HARDWARE_SPEC.md) - Final pad and wiring specification.
 
 ## Safety Warning
-
-The internal UART ground is electrically connected to the meter COM lead. Do not connect the meter to high voltage while it is wired to a grounded PC or Pico USB connection unless you have proper isolation.
+Internal GND = Meter COM. Use opto-isolation for high-voltage measurements. This project is for educational reverse-engineering purposes.

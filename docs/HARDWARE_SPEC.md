@@ -64,5 +64,19 @@ Use `python -m tools.pico_rig_runner ...` to control and log the rig without ref
 - For current research, use `python -m tools.pico_rig_runner cmd ...` or focused Python snippets with `PicoRig` to run early-window captures such as the R83 HOLD/SELECT-held external `F9` repeatability test.
 
 Logs are saved to `logs/rig_runs/`.
+### 4. 9-Pad Matrix Interface
+Located on the main PCB, these 9 pads are the multiplexed interface for the LCD glass and the keypad scanning matrix.
+*   **Protocol:** Scanned Multiplex (~183 Hz / ~365 Edges/sec).
+*   **Pico Mapping (Logic Probe):** GP16–22.
+*   **Significance:** Driving these pins as outputs will interfere with the LCD segments (lighting them all up). They are not suitable for simple static control or programming without high-impedance analog switches.
+
+### 5. Automated Power Control (Legacy Rig)
+The original Rig design used GP16 and GP17 for MOSFET power switching. 
+*   **GP16:** Positive Rail FET (Active HIGH).
+*   **GP17:** Ground Rail FET (Active LOW).
+*   **Note:** In current 9-pad investigation setups, these pins are often reused for matrix probing. For automated power cycling, ensure the MOSFETs are properly isolated or re-assigned.
+
+## Data Logging & Monitoring
 - `DATA INT ...` indicates data from the high-speed internal pads.
 - `DATA EXT ...` indicates data from the external opto-pads.
+- Standard 10-byte frames are logged in hex and decoded in real-time by `ut33c/decoder.py`.

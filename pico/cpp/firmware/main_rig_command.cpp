@@ -242,8 +242,34 @@ void writeBytes(HardwareSerial& uart, const ByteList& bytes, uint32_t gapMs) {
     }
 }
 
+void cmdWrite(char** tokens, size_t argc) {
+    if (argc < 3) {
+        Serial.println("ERR WRITE requires pin and value (0 or 1)");
+        return;
+    }
+
+    long pin = 0;
+    long value = 0;
+    if (!parseLong(tokens[1], pin) || pin < 0 || pin > 29) {
+        Serial.println("ERR invalid pin");
+        return;
+    }
+    if (!parseLong(tokens[2], value) || (value != 0 && value != 1)) {
+        Serial.println("ERR invalid value");
+        return;
+    }
+
+    pinMode(static_cast<int>(pin), OUTPUT);
+    digitalWrite(static_cast<int>(pin), value ? HIGH : LOW);
+    
+    Serial.print("OK WRITE GP");
+    Serial.print(pin);
+    Serial.print(' ');
+    Serial.println(value ? "HIGH" : "LOW");
+}
+
 void cmdHelp() {
-    Serial.println("OK commands: PING HELP STATUS POWER RESET UART TX NULLS MONITOR MARKER CYCLE_MARKER");
+    Serial.println("OK commands: PING HELP STATUS POWER RESET UART TX NULLS MONITOR MARKER CYCLE_MARKER PROBE WRITE GATEWAY_HUNT");
     Serial.println("OK POWER ON|OFF|CYCLE [post_ms]");
     Serial.println("OK RESET PAD1|PAD2|BOTH [duration_ms]");
     Serial.println("OK UART INT|EXT <baud>");
@@ -252,6 +278,9 @@ void cmdHelp() {
     Serial.println("OK MONITOR INT|EXT|BOTH <duration_ms>");
     Serial.println("OK MARKER INT|EXT <timeout_ms> <post_ms> <markers...> RESP <response...>");
     Serial.println("OK CYCLE_MARKER INT|EXT <timeout_ms> <post_ms> <markers...> RESP <response...>");
+    Serial.println("OK PROBE [duration_ms]");
+    Serial.println("OK WRITE <pin> <0|1>");
+    Serial.println("OK GATEWAY_HUNT");
 }
 
 void cmdStatus() {
@@ -411,6 +440,94 @@ void cmdMonitor(char** tokens, size_t argc) {
         monitorPort(serialForPort(tokens[1]), normalizedPortName(tokens[1]), static_cast<uint32_t>(duration));
     }
     Serial.println("OK MONITOR END");
+}
+
+void cmdProbe(char** tokens, size_t argc) {
+    long durationMs = 5000;
+    if (argc >= 2) {
+        parseLong(tokens[1], durationMs);
+    }
+
+    const int probePins[] = {16, 17, 18, 19, 20, 21, 22};
+    const int numPins = 7;
+    
+    // Set all to input
+    for (int i = 0; i < numPins; i++) {
+        pinMode(probePins[i], INPUT);
+    }
+
+    Serial.println("OK PROBE STARTING");
+    delay(500);
+    
+    // Pulse Reset (Pad 2)
+    digitalWrite(PIN_PAD2, LOW);
+    delay(200);
+    digitalWrite(PIN_PAD2, HIGH);
+    
+    uint32_t counts[numPins] = {0};
+    int lastStates[numPins];
+    int startStates[numPins];
+    
+    for (int i = 0; i < numPins; i++) {
+        startStates[i] = lastStates[i] = digitalRead(probePins[i]);
+    }
+
+    uint32_t start = millis();
+    uint32_t samples = 0;
+    while (millis() - start < (uint32_t)durationMs) {
+        samples++;
+        for (int i = 0; i < numPins; i++) {
+            int current = digitalRead(probePins[i]);
+            if (current != lastStates[i]) {
+                counts[i]++;
+                lastStates[i] = current;
+            }
+        }
+        yield();
+    }
+
+    Serial.print("OK PROBE_RESULT samples=");
+    Serial.print(samples);
+    Serial.print(" ms=");
+    Serial.println(millis() - start);
+
+    for (int i = 0; i < numPins; i++) {
+        Serial.print("DATA PROBE GP");
+        Serial.print(probePins[i]);
+        Serial.print(" start=");
+        Serial.print(startStates[i] ? "H" : "L");
+        Serial.print(" end=");
+        Serial.print(lastStates[i] ? "H" : "L");
+        Serial.print(" edges=");
+        Serial.println(counts[i]);
+    }
+    Serial.println("OK PROBE END");
+    
+    // Restore power control pins to output mode for future commands
+    pinMode(PIN_PWR_FET_POS, OUTPUT);
+    pinMode(PIN_PWR_FET_NEG, OUTPUT);
+    setPower(true);
+}
+
+void cmdGatewayHunt(char** tokens, size_t argc) {
+    Serial.println("OK GATEWAY_HUNT STARTING");
+    
+    // 1. Soft Reset
+    digitalWrite(PIN_PAD1, LOW);
+    delay(200);
+    
+    // 2. Blast NULLs
+    for(int i=0; i<100; i++) {
+        Serial1.write((uint8_t)0x00);
+    }
+    Serial1.flush();
+    
+    // 3. Release
+    digitalWrite(PIN_PAD1, HIGH);
+    
+    // 4. Monitor
+    monitorPort(Serial1, "INT", 2000);
+    Serial.println("OK GATEWAY_HUNT END");
 }
 
 void runMarkerResponse(HardwareSerial& uart, const char* portName, uint32_t timeoutMs, uint32_t postMs, const ByteList& markers, const ByteList& response) {
@@ -619,6 +736,12 @@ void processCommand(char* line) {
         cmdNulls(tokens, argc);
     } else if (strcasecmp(tokens[0], "MONITOR") == 0) {
         cmdMonitor(tokens, argc);
+    } else if (strcasecmp(tokens[0], "PROBE") == 0) {
+        cmdProbe(tokens, argc);
+    } else if (strcasecmp(tokens[0], "WRITE") == 0) {
+        cmdWrite(tokens, argc);
+    } else if (strcasecmp(tokens[0], "GATEWAY_HUNT") == 0) {
+        cmdGatewayHunt(tokens, argc);
     } else if (strcasecmp(tokens[0], "MARKER") == 0) {
         cmdMarker(tokens, argc);
     } else if (strcasecmp(tokens[0], "CYCLE_MARKER") == 0) {
@@ -655,12 +778,19 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
     pinMode(PIN_PAD1, OUTPUT);
     pinMode(PIN_PAD2, OUTPUT);
-    pinMode(PIN_PWR_FET_POS, OUTPUT);
-    pinMode(PIN_PWR_FET_NEG, OUTPUT);
+    
+    // Initialize probe pins as high-impedance inputs to prevent LCD interference
+    const int probePins[] = {16, 17, 18, 19, 20, 21, 22};
+    for (int i = 0; i < 7; i++) {
+        pinMode(probePins[i], INPUT);
+    }
 
     digitalWrite(PIN_PAD1, HIGH);
     digitalWrite(PIN_PAD2, HIGH);
-    setPower(true);
+    
+    // NOTE: We don't set PIN_PWR_FET_POS/NEG to OUTPUT here because 
+    // they are shared with GP16/17. They will be set to OUTPUT only 
+    // when a POWER command is issued.
 
     beginMeterUart("INT", DEFAULT_METER_BAUD);
     beginMeterUart("EXT", DEFAULT_METER_BAUD);

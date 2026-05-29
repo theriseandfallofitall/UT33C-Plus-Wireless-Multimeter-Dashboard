@@ -19,11 +19,16 @@ During the initialization phase or when the HOLD/SELECT button is held, the MCU 
 
 | Marker | Meaning | Significance |
 | :--- | :--- | :--- |
-| **`AB FD`** | Bootloader Listener | Emitted on the internal UART ~1.1s after hard power-on. Also emitted on the external/opto UART in every characterized non-Continuity mode so far, and in Continuity when the HOLD/SELECT button is held. Primary trigger point for command injection. |
-| **`AB ED`** | External Continuity Boot Marker | Emitted on the external/opto UART in Continuity mode with no held button at the same boot offset. Confirmed repeatable in R45. |
-| **`F9`** | Button-Active Marker | Observed in Byte 2 position when the HOLD/SELECT button is engaged during reset; R83 also saw passive external `F9` at ~10ms before `E0` with HOLD/SELECT held in Continuity. |
-| **`F0`** | Early External Button-Held Spill | Occasionally observed before `E0` on the external/opto UART with HOLD/SELECT held in Continuity. |
-| **`E0`** | Early Reset Junk | First byte seen after power-up. Likely clock stabilization noise. |
+| **`AB FD`** | Bootloader Listener | Emitted ~1.1s after hard power-on. Primary trigger point for command injection attempts. |
+| **`41`** | Gateway/Ready ID | Exposed in Byte 2 position after a NULL-glitched soft reset. Indicates the MCU is in a diagnostic listening state. |
+| **`F9`** | Button-Active Marker | Observed in Byte 2 position when the HOLD/SELECT button is engaged during reset. |
+| **`E0`** | Power-On Noise | First byte seen after power-up. Likely clock stabilization noise. |
+
+## 9-Pad LCD/Matrix Specification
+The 9 pads on the PCB carry multiplexed LCD signals and button matrix scans.
+- **Frequency:** ~183 Hz (Common Multiplex Rate).
+- **Behavior:** High-speed oscillation (GP17, 18, 19, 21) combined with static mode-state levels (GP16).
+- **Interference:** Driving these pins causes the "All Segments Lit" state on the LCD. 
 
 | 3 | Mode Byte | Dial range unit. Bit 7 (`0x80`) is a status flag (Seen in `8D`). |
 | 4-7 | ADC Count | 32-bit Big Endian SIGNED integer (Internal counts). |
