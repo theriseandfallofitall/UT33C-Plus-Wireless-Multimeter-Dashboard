@@ -25,5 +25,5 @@ To power your Bluetooth module, you will need to tap into the meter's power rail
 
 During my reverse-engineering phase, I mapped out several other pads on the board. You should **avoid connecting anything to these**:
 
-- **The 9-Pad Interface:** There is a group of 9 pads near the top/rotary dial. **Do not solder to these.** These are the multiplexed LCD segment and keypad scanning lines (running at ~183 Hz). Shorting them or driving them with a microcontroller will interfere with the LCD glass and cause all segments to light up, potentially damaging the driver.
+- **The 9-Pad Interface:** There is a group of 9 pads near the top/rotary dial. These are the multiplexed LCD segment and keypad scanning lines (running at ~183 Hz). Shorting them or driving them with a microcontroller will interfere with the LCD glass and cause all segments to light up, potentially damaging the driver.
 - **Pad 1 (Soft Reset) & Pad 2 (Hard Reset):** These were used to trigger timing attacks against the IC's bootloader. They are not useful for general telemetry.
