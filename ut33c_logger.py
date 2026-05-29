@@ -28,7 +28,12 @@ def find_port():
     return ports[0].device
 
 def main():
-    port = find_port()
+    import argparse
+    parser = argparse.ArgumentParser(description="UT33C+ Universal Logger")
+    parser.add_argument("--port", help="Specific COM port to use (e.g. COM3). Auto-detects if omitted.", default=None)
+    args = parser.parse_args()
+
+    port = args.port or find_port()
     if not port:
         print("Error: No serial ports found.")
         return

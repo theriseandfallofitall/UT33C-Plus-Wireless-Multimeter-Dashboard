@@ -55,6 +55,7 @@ MODES: dict[int, dict[str, Any]] = {
     0x1A: {"name": "200k Ohm", "unit": "kOhm", "scale": 0.1, "offset": 0},
     0x1B: {"name": "20mA DC", "unit": "mA", "scale": 0.01, "offset": 0},
     0x1C: {"name": "2M Ohm", "unit": "MOhm", "scale": 0.01, "offset": 0},
+    0x1D: {"name": "200 Ohm", "unit": "Ohm", "scale": 0.1, "offset": 0},
     0x1E: {"name": "2000 Ohm", "unit": "Ohm", "scale": 1.0, "offset": 0},
     0x1F: {"name": "2000uA DC", "unit": "uA", "scale": 1.0, "offset": 0},
 }
