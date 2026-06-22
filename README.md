@@ -1,3 +1,5 @@
+<img src="images/header.png" alt="UT33C+ Wireless Multimeter Dashboard header" width="100%">
+
 # UT33C+ Wireless Multimeter Dashboard
 
 This project upgrades a standard UNI-T UT33C+ digital multimeter into a wireless, data-logging smart meter using a simple, cheap Bluetooth module.
