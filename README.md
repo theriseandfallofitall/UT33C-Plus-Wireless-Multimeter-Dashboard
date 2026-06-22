@@ -2,51 +2,55 @@
 
 # UT33C+ Wireless Multimeter Dashboard
 
-This project upgrades a standard UNI-T UT33C+ digital multimeter into a wireless, data-logging smart meter using a simple, cheap Bluetooth module.
+I turned a standard UNI-T UT33C+ digital multimeter into a wireless logging meter with a cheap Bluetooth module and a Python dashboard.
 
-By tapping into the multimeter's hidden internal telemetry stream discovered purely by accident while I was trying to tape over the continuity buzzer this software provides a realtime dashboard, data logging, and interactive graphing on your PC.
+The fun bit: the meter already had an internal telemetry stream. I found it by accident while trying to shut up the continuity buzzer. This repo is the result: live readings on your PC, graphing, snapshots, and CSV logging without adding a microcontroller.
 
 ![In Action](images/in_action.jpg)
 
-## Core Features
+## What it does
 
-- **No Microcontrollers Required:** Connect a simple ZS-040 (HC-05/HC-06) Bluetooth module directly to the meter's PCB.
-- **Auto-Connect:** Automatically discovers and connects to your paired Bluetooth module.
-- **Overlay Mode:** Tear off a transparent, borderless, always on top window to monitor readings while you work or game.
+- Talks to a ZS-040 / HC-05 / HC-06 Bluetooth module wired straight to the meter's PCB.
+- Finds and connects to the paired Bluetooth serial port automatically.
+- Decodes live readings for voltage, resistance, continuity, diode mode, and temperature.
+- Gives you a small transparent overlay window you can keep on top while you work.
   ![Transparent Overlay](images/transparent_overlay.png)
-- **Full Decoding:** Real-time decoding of DC/AC Voltage, Resistance, Continuity, Diode drops, and Temperature.
-- **Snapshot History:** Save and label instantaneous readings with a single click.
+- Lets you save labelled snapshots of readings.
   ![Snapshots](images/snapshots.png)
-- **CSV Data Logging:** Log long-term trends to timestamped CSV files for later analysis.
+- Logs readings to CSV for longer tests or debugging sessions.
   ![Logging](images/logging.png)
 
-## How to Build Yours
+## Build your own
 
-1. Hardware Mod: Wire a generic Bluetooth module to the meter's internal UART pad. It takes 3 wires (TX, VCC, GND).
-   - Read the [Hardware Wiring Guide](docs/WIRING.md) to locate the pads.
-   - Read the [Bluetooth Setup Guide](docs/BT_SETUP.md) to configure your module.
-2. Install Software: Ensure you have Python 3 installed.
+1. Wire a generic Bluetooth module to the meter's internal UART pad. You only need TX, VCC, and GND.
+   - Use the [hardware wiring guide](docs/WIRING.md) to find the pads.
+   - Use the [Bluetooth setup guide](docs/BT_SETUP.md) to configure the module.
+2. Install the Python dependencies:
    ```bash
    pip install pyserial matplotlib
    ```
-3. Launch the Dashboard:
+3. Start the dashboard:
    ```bash
    python app.py
    ```
 
-### Command Line Alternative
-To log telemetry to CSV without the graphical UI:
+### Command line logger
+
+If you just want CSV logs without the GUI:
+
 ```bash
 python ut33c_logger.py
 ```
 
-## Documentation
+## Docs
 
-- [**Hardware Wiring Guide (WIRING.md)**](docs/WIRING.md): Where to solder your wires and what to avoid (like the 9-pad LCD matrix).
-- [**Bluetooth Setup Guide (BT_SETUP.md)**](docs/BT_SETUP.md): How to program your ZS-040 module to 2400 baud so it can talk to the meter.
-- [**Protocol Reference (PROTOCOL.md)**](docs/PROTOCOL.md): A detailed map of the 10 byte binary telemetry frames.
-- [**Research History (RESEARCH_HISTORY.md)**](docs/RESEARCH_HISTORY.md): A technical log of the failed attempts to gain remote control (UART fuzzing, timing attacks, etc.).
+- [Hardware wiring guide](docs/WIRING.md): where to solder, and what not to touch.
+- [Bluetooth setup guide](docs/BT_SETUP.md): setting the ZS-040 module to 2400 baud so it can talk to the meter.
+- [Protocol reference](docs/PROTOCOL.md): the 10-byte binary telemetry frame format.
+- [Research history](docs/RESEARCH_HISTORY.md): dead ends, UART fuzzing, timing attacks, and the failed attempts at remote control.
 
-## Safety Warning
-The internal ground of the multimeter is electrically connected to the COM probe. Never connect the meter to a grounded PC via USB while measuring high voltages. 
-This is why the Bluetooth modification is highly recommended it provides complete galvanic isolation, keeping your PC safe.
+## Safety warning
+
+The multimeter's internal ground is connected to the COM probe. Do not plug the meter into a grounded PC over USB while measuring high voltages.
+
+Use Bluetooth. The isolation is the point.
