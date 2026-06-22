@@ -1,29 +1,34 @@
-# Hardware Wiring Guide
+# Hardware wiring
 
-The UT33C+ is built around an SD7501 (or similar) multimeter IC. This chip continuously streams out all of its telemetry via a hidden UART port as soon as the meter is turned on.
+The UT33C+ uses an SD7501, or a very similar multimeter IC. Once the meter is on, the chip continuously sends measurement data over a hidden UART port.
 
-By connecting three wires to the main PCB, I can broadcast this data over Bluetooth.
+You only need three wires to broadcast that stream over Bluetooth.
 
-## Locating the Pads
+## Finding the pads
 
-Open the back of your UT33C+ and locate the main PCB. 
+Open the back of the UT33C+ and find the main PCB.
 
-![Internal Wiring](../images/wiring.jpg)
+![Internal wiring](../images/wiring.jpg)
 
-### 1. The Internal UART (Telemetry Stream)
-Near the center/bottom of the board, you will find a set of test pads.
-- **Internal TX:** This pad transmits the 2400 baud, 8N1 binary data stream. **Connect this to your Bluetooth module's `RXD` pin.**
-- **Internal RX:** This pad is a listener, but exhaustive hardware fuzzing has confirmed that command injection (remote control) is locked behind a proprietary OEM authorization key. **Do not connect anything to this pad.**
+## Internal UART
 
-### 2. Power and Ground
-To power your Bluetooth module, you will need to tap into the meter's power rails.
-- **GND:** Connect this to your module's `GND` pin. (Note: This is electrically identical to the `COM` probe jack).
-- **VCC (3.0V):** The meter runs on two AAA batteries, providing ~3.0V. Connect this to your module's `VCC` pin.
-  - *Crucial Note:* Many ZS-040 (HC-05/06) modules are designed for 3.6V - 6V logic and have onboard regulators. While some will operate directly on 3.0V, their range and stability might suffer. If your module drops connection, you may need to bypass its onboard 3.3V regulator or use a tiny 3V-to-5V step-up converter.
+Near the centre-bottom of the board there is a row of test pads.
 
-## What NOT to Touch
+- `TX`: the useful one. This sends the 2400 baud, 8N1 binary telemetry stream. Connect it to the Bluetooth module's `RXD` pin.
+- `RX`: leave this alone. I tried the obvious command-injection route and it appears to be locked behind an OEM handshake. For this project the meter is read-only.
 
-During my reverse-engineering phase, I mapped out several other pads on the board. You should **avoid connecting anything to these**:
+## Power and ground
 
-- **The 9-Pad Interface:** There is a group of 9 pads near the top/rotary dial. These are the multiplexed LCD segment and keypad scanning lines (running at ~183 Hz). Shorting them or driving them with a microcontroller will interfere with the LCD glass and cause all segments to light up, potentially damaging the driver.
-- **Pad 1 (Soft Reset) & Pad 2 (Hard Reset):** These were used to trigger timing attacks against the IC's bootloader. They are not useful for general telemetry.
+Tap the meter's power rails for the Bluetooth module.
+
+- `GND`: connect to the module's `GND` pin. This is electrically the same as the meter's `COM` probe jack.
+- `VCC`: the meter runs from two AAA batteries, so this is about 3.0V. Connect it to the module's `VCC` pin.
+
+A note on ZS-040 / HC-05 / HC-06 modules: many of them are designed around 3.6V-6V input and have an onboard regulator. Some work directly from 3.0V, some get flaky. If the Bluetooth link keeps dropping, bypass the onboard regulator or use a tiny 3V-to-5V boost converter.
+
+## Pads to avoid
+
+I mapped a few other pads while reverse engineering the board. They are not useful for this build.
+
+- The 9-pad group near the top/rotary dial is for the LCD segments and keypad scan lines. It runs at about 183 Hz. Shorting or driving those pads can light every LCD segment and may damage the display driver.
+- Pad 1 and pad 2 behave like reset lines. They were only useful for timing experiments and are not needed for telemetry.

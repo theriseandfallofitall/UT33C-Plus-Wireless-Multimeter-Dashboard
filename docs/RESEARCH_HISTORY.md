@@ -1,46 +1,58 @@
-# Research History: Reverse Engineering the UT33C+
+# Reverse engineering notes
 
-## The Origin Story
-This project did not start as a sophisticated reverse-engineering operation. It started because I was frustrated. 
+## How this started
 
-The continuity buzzer on the UT33C+ is so bloody loud. It was so loud that I eventually snapped and opened the meter to cover the buzzer with tape. 
+This was not meant to be a reverse-engineering project. The continuity buzzer on the UT33C+ is just obnoxiously loud.
 
-While I was inside the casing, I noticed a row of unlabeled test pads on the PCB as well as TX and RX. bbed my logic analyzer. I quickly popped on uart adapter and got some data. 
+I opened the meter to cover the buzzer with tape and noticed a row of unlabeled test pads, including TX and RX. I put a logic analyzer on them, then tried a UART adapter. The meter was already streaming its readings at 2400 baud.
 
-That data turned out to be a continuous 2400-baud UART stream of every single measurement the meter was making. What began as a quick fix with tape turned into this wireless dashboard.
+So the quick buzzer fix turned into a wireless dashboard.
 
-## 1. UART Command Injection
-**Goal:** Use the `Internal RX` pad to send commands (e.g., `SELECT`, `HOLD`) directly to the MCU.
+## 1. UART command injection
 
-- **Attempted:** I sent standard UNI-T command frames (like `AB 01` for Select) at various baud rates (2400, 4800, 9600).
-- **Result:** **FAILED.** The MCU ignored all input on the RX line once the primary telemetry stream started.
-- **Discovery:** The RX path appears to be physically disabled or software-locked immediately after the boot sequence.
+Goal: use the internal `RX` pad to send commands such as `SELECT` or `HOLD` directly to the meter.
 
-## 2. Timing & Reset Attacks
-**Goal:** Inject a "Magic Key" during the sub-millisecond window when the chip first wakes up.
+What I tried:
 
-- **Attempted:** Using a Pi Pico as a high-speed HIL (Hardware-In-the-Loop) rig, I automated power cycles and reset pulses. I blasted the RX line with NULL bytes and various OEM prefixes (like `0xA5 0x5A`) the instant the chip emitted its first byte.
-- **Discovery:** I successfully exposed a hidden **Protocol ID `41`** (Gateway Mode). When glitched correctly during a soft reset, the meter would switch its ID from `01` to `41`.
-- **Result:** **LOCKED.** Even in the `41` state, the meter required a specific multi-byte authorization key that is not documented and could not be brute-forced.
+- Standard UNI-T-looking command frames, including `AB 01` for select.
+- 2400, 4800, and 9600 baud.
+- Sending commands after the telemetry stream had started.
 
-## 3. The 9-Pad Matrix
-**Goal:** Identify a secondary programming or control header.
+Result: no response. Once normal telemetry starts, the chip ignores the RX line, or the input path is locked.
 
-- **Attempted:** Soldered to 9 unlabeled pads on the PCB, suspecting they might be a JTAG, SWD, or static mode-selection interface.
-- **Investigation:** I used the Pico as a 360kHz logic probe to analyze the signals. 
-- **Result:** **LCD MATRIX.** The pins were oscillating at ~183 Hz. Driving them directly caused the "All Segments Lit" state on the LCD.
-- **Conclusion:** These pads are the multiplexed drive lines for the LCD glass and the keypad scanning matrix. They are not a digital control port.
+## 2. Timing and reset attacks
 
-## 4. Optical Port Probing
-**Goal:** Use the external opto-port (typically used for PC-Link) to inject commands.
+Goal: inject a key during the tiny window when the chip first wakes up.
 
-- **Attempted:** Monitored the external UART pads while holding various button combinations during boot.
-- **Discovery:** Holding `HOLD/SELECT` during power-on changes the external boot marker from `AB ED` to `AB FD` (The "Listener" marker).
-- **Result:** **READ-ONLY.** Like the internal pads, the external port is highly resistant to injection without the proprietary OEM handshake.
+I used a Pi Pico test rig to automate power cycles and reset pulses, then blasted the RX line with null bytes and likely OEM prefixes such as `0xA5 0x5A` as soon as the first byte appeared.
 
-## Final Conclusion
-The SD7501 chipset used in the "Plus" series multimeters has been intentionally hardened against unauthorized remote control. While the **Telemetry (Out)** path is wide open and easy to decode, the **Command (In)** path is gated by an encrypted or password-protected bootloader.
+This did expose a hidden protocol ID: `41`, which looked like a gateway mode. With the right reset glitch, the meter switched from ID `01` to ID `41`.
 
-Remote control is only feasible through **analog bypass**:
-1. Soldering optocouplers or analog switches across the physical button traces.
-2. Using a servo motor to physically turn the rotary dial.
+That still was not enough. In that state the meter expected a specific multi-byte authorization key. I did not find it, and brute forcing it was not realistic.
+
+## 3. The 9-pad matrix
+
+Goal: find out whether the 9 unlabeled pads near the rotary dial were a programming or control header.
+
+I soldered to the pads and used the Pico as a 360kHz logic probe. The signals were oscillating at about 183 Hz. Driving them directly caused the LCD to enter an "all segments lit" state.
+
+Conclusion: those pads are for the LCD glass and keypad scanning. They are not a digital control port.
+
+## 4. Optical port probing
+
+Goal: use the external opto-port, normally used for PC-Link, to inject commands.
+
+I monitored the external UART pads while holding different button combinations during boot. Holding `HOLD/SELECT` changed the external boot marker from `AB ED` to `AB FD`, which looked like a listener marker.
+
+It still behaved as read-only without the proprietary handshake.
+
+## Where this leaves things
+
+The telemetry path is wide open and easy to decode. The command path is deliberately locked down.
+
+If remote control is ever worth doing, the practical options are physical bypasses:
+
+1. Optocouplers or analog switches across the button traces.
+2. A servo to turn the rotary dial.
+
+For now, the cleanest version of this project is the simple one: listen to the meter, do not try to control it.

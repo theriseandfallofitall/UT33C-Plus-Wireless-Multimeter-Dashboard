@@ -47,7 +47,8 @@ python ut33c_logger.py
 - [Hardware wiring guide](docs/WIRING.md): where to solder, and what not to touch.
 - [Bluetooth setup guide](docs/BT_SETUP.md): setting the ZS-040 module to 2400 baud so it can talk to the meter.
 - [Protocol reference](docs/PROTOCOL.md): the 10-byte binary telemetry frame format.
-- [Research history](docs/RESEARCH_HISTORY.md): dead ends, UART fuzzing, timing attacks, and the failed attempts at remote control.
+- [Reverse engineering notes](docs/RESEARCH_HISTORY.md): dead ends, UART fuzzing, timing attacks, and why the meter is read-only.
+- [Project architecture](docs/ARCHITECTURE.md): the main Python files and a few conventions for working on the app.
 
 ## Safety warning
 

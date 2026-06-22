@@ -1,53 +1,54 @@
-# Bluetooth Setup Guide
+# Bluetooth setup
 
-By adding a cheap Bluetooth module (like the ZS-040 / HC-05), you can turn your UT33C+ into a completely wireless smart meter. 
+A cheap ZS-040 / HC-05 Bluetooth serial module is enough to make the UT33C+ wireless. It also keeps the meter electrically isolated from your PC, which matters if the probes ever touch anything nasty.
 
-This provides **complete galvanic isolation** between your PC and the high voltages you might be measuring, keeping you and your computer safe.
+## Set the module to 2400 baud first
 
-## 1. Module Pre-Configuration
+The meter's UART runs at 2400 baud. Most Bluetooth serial modules ship at 9600 baud, so configure the module before you solder it into the meter. If you skip this, the dashboard will only see scrambled data.
 
-The UT33C+ internal UART transmits data very slowly, at **2400 baud**. 
-Most generic Bluetooth modules default to 9600 baud. **You must configure your module to 2400 baud before soldering it to the meter, otherwise the data will be scrambled.**
+You need a USB-TTL serial adapter such as an FT232 or CH340.
 
-You will need a standard USB-TTL serial adapter (like an FT232 or CH340) connected to your PC to program the module.
+### ZS-040 / HC-05 setup
 
-**For ZS-040 (HC-05) Modules:**
-1. Connect the module to your USB-TTL adapter (TX to RX, RX to TX, VCC to 5V, GND to GND).
-2. **Enter AT Mode:** Hold down the small button on the Bluetooth module while plugging the USB adapter into your PC. The LED on the module should start blinking slowly (about once every 2 seconds).
-3. Open a Serial Terminal program (like PuTTY, CoolTerm, or the Arduino Serial Monitor).
-4. Connect to your USB-TTL adapter's COM port at **38400 baud** (the mandatory speed for AT mode). Ensure your terminal sends both `CR` and `LF` at the end of lines.
-5. Send the following command to set the speed to 2400 baud:
+1. Connect the Bluetooth module to the USB-TTL adapter:
+   - TX -> RX
+   - RX -> TX
+   - VCC -> 5V
+   - GND -> GND
+2. Hold the small button on the Bluetooth module while plugging the USB adapter into your PC. The LED should blink slowly, roughly once every two seconds. That means it is in AT mode.
+3. Open a serial terminal such as PuTTY, CoolTerm, or the Arduino Serial Monitor.
+4. Connect to the USB-TTL adapter at 38400 baud. Set the terminal to send both `CR` and `LF` at the end of each line.
+5. Set the UART speed:
    ```text
    AT+UART=2400,0,0
    ```
-   *The module should reply with `OK`.*
-6. (Optional) Give your module a friendly name so the dashboard auto connects to it:
+   The module should reply with `OK`.
+6. Give the module a name the dashboard can recognise:
    ```text
    AT+NAME=UT33C_MultiMeter
    ```
-   *The module should reply with `OK`.*
+   Again, you should get `OK` back.
 
-## 2. Hardware Wiring
+## Wire it into the meter
 
-Once the module is programmed, disconnect it from the USB adapter and follow the [Hardware Wiring Guide (WIRING.md)](WIRING.md) to solder it inside the multimeter.
+After the module is configured, unplug it from the USB adapter and follow the [hardware wiring guide](WIRING.md).
 
-## 3. Connecting to your PC
+## Pair it with your PC
 
-1. Turn on the multimeter. The LED on your Bluetooth module should begin flashing rapidly.
-2. Open Windows Bluetooth Settings (or your OS equivalent).
-3. Click "Add Bluetooth or other device" and pair with **UT33C_MultiMeter** (or whatever you named it). 
-   - *The default pairing PIN is usually `1234` or `0000`.*
-4. Windows will silently assign a "Standard Serial over Bluetooth link" COM port to the device in the background.
+1. Turn on the multimeter. The Bluetooth module LED should flash quickly.
+2. Open Bluetooth settings on your computer.
+3. Add a new Bluetooth device and pair with `UT33C_MultiMeter`, or whatever name you chose.
+   - The default PIN is usually `1234` or `0000`.
+4. Windows will create a "Standard Serial over Bluetooth link" COM port in the background.
 
-## 4. Launching the Dashboard
+## Start the dashboard
 
-You are now ready to go wireless! 
+Run:
 
-Simply launch the dashboard application:
 ```bash
 python app.py
 ```
 
-Because you named the module `UT33C_MultiMeter`, the dashboard will automatically scan your PC's hidden Bluetooth COM ports, find the correct one, and connect instantly.
+If the module is named `UT33C_MultiMeter`, the dashboard should find the Bluetooth COM port and connect by itself.
 
-![Settings Interface](../images/settings.png)
+![Settings interface](../images/settings.png)

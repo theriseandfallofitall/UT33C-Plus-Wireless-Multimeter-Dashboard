@@ -1,59 +1,69 @@
-# Protocol Map: UT33C+ Telemetry
+# UT33C+ telemetry protocol
 
-The UT33C+ auto-transmits raw binary data continuously while powered on.
+The UT33C+ sends raw binary telemetry continuously while it is powered on.
 
-## Serial Settings
-*   **Baud Rate:** 2400
-*   **Data Bits:** 8
-*   **Parity:** None
-*   **Stop Bits:** 1
+## Serial settings
 
-## Frame Structure (10 Bytes)
-Every reading is packaged into a 10-byte frame:
-`[AB CD] [ID] [MODE] [B0] [B1] [B2] [B3] [STATUS] [CS]`
+- Baud: 2400
+- Data bits: 8
+- Parity: none
+- Stop bits: 1
 
-| Byte | Field | Description |
-| :--- | :--- | :--- |
+## Frame format
+
+Each reading is a 10-byte frame:
+
+```text
+[AB CD] [ID] [MODE] [B0] [B1] [B2] [B3] [STATUS] [CS]
+```
+
+| Byte | Field | Notes |
+| --- | --- | --- |
 | `0-1` | Header | Fixed sync bytes: `0xAB 0xCD`. |
-| `2` | Protocol ID | `0x01` indicates normal operating mode. |
-| `3` | Mode Byte | Defines the current dial range/unit (see table below). |
-| `4-7` | ADC Count | 32-bit Big Endian SIGNED integer representing the raw internal counts. |
-| `8` | Status | Flags (e.g., `0x00` = Normal, `0x04` or `0x03` = Often seen during Over-Load). |
-| `9` | Checksum | `sum(Bytes 2..7) & 0xFF` (Note: The Status byte is *excluded* from the checksum). |
+| `2` | Protocol ID | `0x01` in normal operation. |
+| `3` | Mode | Dial range / unit. See the table below. |
+| `4-7` | ADC count | 32-bit big-endian signed integer. |
+| `8` | Status | Status flags. `0x00` is normal. `0x04` and `0x03` often show up around overload states. |
+| `9` | Checksum | `sum(bytes 2..7) & 0xFF`. The status byte is not included. |
 
-## Confirmed Range Mappings (Byte 3)
+## Confirmed mode mappings
 
-| Mode Byte | Range Name | Value Calculation |
-| :--- | :--- | :--- |
+| Mode | Range | Calculation |
+| --- | --- | --- |
 | `0x07` | 2000mV DC | 1 count = 1.0 mV |
 | `0x0D` | 20V DC | 1 count = 0.01 V |
 | `0x15` | 200V DC | 1 count = 0.1 V |
-| `0x17` | 200mV DC | 1 count = 0.1 mV *(Over-Load at 2080 counts)* |
+| `0x17` | 200mV DC | 1 count = 0.1 mV. Overload appears around 2080 counts. |
 | `0x18` | 600V DC | 1 count = 1.0 V |
 | `0x12` | 200V AC | 1 count = 0.1 V |
 | `0x11` | 600V AC | 1 count = 1.0 V |
-| `0x1D` | 200 Ohm | 1 count = 0.1 Ohm |
-| `0x1E` | 2000 Ohm | 1 count = 1.0 Ohm |
-| `0x0E` | 20k Ohm | 1 count = 0.01 kOhm |
-| `0x1A` | 200k Ohm | 1 count = 0.1 kOhm |
-| `0x1C` | 2M Ohm | 1 count = 0.01 MOhm |
+| `0x1D` | 200 ohm | 1 count = 0.1 ohm |
+| `0x1E` | 2000 ohm | 1 count = 1.0 ohm |
+| `0x0E` | 20k ohm | 1 count = 0.01 kOhm |
+| `0x1A` | 200k ohm | 1 count = 0.1 kOhm |
+| `0x1C` | 2M ohm | 1 count = 0.01 MOhm |
 | `0x16` | Celsius | 1 count = 0.1 °C |
-| `0x13` | Fahrenheit | `(count * 0.1 * 9/5) + 32` *(The meter always transmits Celsius counts over UART, even when the screen shows Fahrenheit).* |
-| `0x19` | Continuity/Diode | *See Special States below.* |
+| `0x13` | Fahrenheit | The meter still sends Celsius counts over UART. Convert with `(count * 0.1 * 9/5) + 32`. |
+| `0x19` | Continuity / diode | Shared mode. See below. |
 
-## Special States
+## Special states
 
-### Over-Load (OL)
-When the meter probes measure something beyond the current range, the UART signals an "Over-Load" state. The software dashboard handles this by looking for specific extreme count values (e.g., `0x7F00` or `32512` in Resistance modes, or `>= 2080` in the 200mV mode).
+### Overload
 
-### Continuity & Diode Mode (`0x19`)
-This mode is contextual and shares a single Mode Byte. The Python decoder interprets it based on the ADC count:
-*   If `count >= 32512`: The probes are open. Display shows **OL**.
-*   If `count < 3000`: The meter is reading a voltage drop across a diode. Divide count by 1000 to get **Volts**.
-*   Otherwise: The meter is measuring low resistance. Display the count directly as **Ohms** (this is when the buzzer sounds).
+When the probes exceed the selected range, the meter reports overload. The decoder checks for the count patterns seen in captures, including `0x7F00` / `32512` in resistance modes and `>= 2080` in 200mV mode.
 
-### Hardware Saturation
-When the ADC is completely pegged to its maximum physical limit (beyond standard OL), the UART will stream `7F FF` in the count bytes.
+### Continuity and diode mode (`0x19`)
 
----
-*Note: Early research investigated remote command injection (e.g., changing modes via UART). This path is locked behind an unknown OEM authorization sequence. The meter is effectively a read-only telemetry device.*
+The same mode byte covers continuity and diode mode. The decoder decides what to show from the ADC count:
+
+- `count >= 32512`: open probes, display `OL`.
+- `count < 3000`: diode voltage drop. Divide by 1000 for volts.
+- Anything else: low resistance in ohms, which is also when the buzzer sounds.
+
+### Hardware saturation
+
+If the ADC is completely pegged beyond the normal overload state, the count bytes stream as `7F FF`.
+
+## Read-only behaviour
+
+I did look at remote control over UART, including changing modes from software. That route appears to be locked behind an undocumented OEM authorization sequence. For this project, the UT33C+ is a read-only telemetry device.
