@@ -11,14 +11,15 @@ DISPLAY_PORT_KEYWORDS = (
     "PICO", 
     "RP2040", 
     "SERIAL", 
-    "CH340", 
-    "CP210"
+    "CH340",
+    "CP210",
+    "RFCOMM",   # Linux Bluetooth SPP (/dev/rfcommN has no description/hwid)
 )
 
 def find_display_port() -> str | None:
     """Auto-detect the multimeter COM port based on keywords."""
     for port in serial.tools.list_ports.comports():
-        text = f"{port.description} {port.hwid}".upper()
+        text = f"{port.device} {port.description} {port.hwid}".upper()
         if any(keyword in text for keyword in DISPLAY_PORT_KEYWORDS):
             return port.device
     return None

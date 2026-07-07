@@ -13,19 +13,11 @@ import os
 from datetime import datetime
 
 from ut33c.decoder import BAUD, decode_reading, pop_next_frame
+from ut33c.ports import find_display_port
 
 
 LOG_DIR = "logs"
 CSV_FILE = f"ut33c_plus_log_{int(time.time())}.csv"
-
-def find_port():
-    ports = serial.tools.list_ports.comports()
-    if not ports: return None
-    # Prioritize USB Serial ports (likely the FTDI)
-    for p in ports:
-        if "USB" in p.description.upper() or "FT232" in p.description.upper():
-            return p.device
-    return ports[0].device
 
 def main():
     import argparse
@@ -33,9 +25,9 @@ def main():
     parser.add_argument("--port", help="Specific COM port to use (e.g. COM3). Auto-detects if omitted.", default=None)
     args = parser.parse_args()
 
-    port = args.port or find_port()
+    port = args.port or find_display_port()
     if not port:
-        print("Error: No serial ports found.")
+        print("Error: No matching serial port found. Specify one with --port.")
         return
 
     if not os.path.exists(LOG_DIR):
